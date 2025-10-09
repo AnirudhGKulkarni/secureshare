@@ -24,7 +24,7 @@ export const Sidebar = () => {
       <div className="flex h-16 items-center px-6 border-b border-border">
         <Shield className="h-6 w-6 text-primary mr-2" />
         <span className="text-lg font-semibold bg-gradient-to-r from-primary to-accent-foreground bg-clip-text text-transparent">
-          Shield
+          Secure Share
         </span>
       </div>
       
