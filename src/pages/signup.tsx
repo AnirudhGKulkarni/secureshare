@@ -64,13 +64,22 @@ const Signup: React.FC = () => {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-secondary to-accent p-6">
       <Card className="w-full max-w-lg shadow-elevated">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-foreground shadow-lg">
-            <Shield className="h-8 w-8 text-white" />
+          <div className="mx-auto flex items-center gap-3">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-foreground shadow-lg">
+              <Shield className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-lg font-semibold">SecureShare</div>
           </div>
-          <div>
-            <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
+
+          <div className="pt-2">
+            <div className="flex items-center justify-center gap-2 rounded-full bg-muted p-1 w-max mx-auto">
+              <Link to="/login" className="px-4 py-1 text-sm rounded-full hover:bg-muted/50">Sign In</Link>
+              <div className="px-4 py-1 text-sm rounded-full bg-background font-semibold">Signup</div>
+            </div>
+
+            <CardTitle className="text-2xl font-bold mt-4">Welcome to SecureShare</CardTitle>
             <CardDescription className="text-base mt-2">
-              Register SecureShare — fast and secure
+              Securely create and share files and documents with end-to-end controls.
             </CardDescription>
           </div>
         </CardHeader>
@@ -211,8 +220,32 @@ const Signup: React.FC = () => {
             </div>
 
             <Button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90 transition-opacity shadow-md">
-              {isLoading ? "Creating account..." : "Create account"}
+              {isLoading ? "Creating account..." : "Continue"}
             </Button>
+
+            <div className="mt-4">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-border" />
+                <div className="text-sm text-muted-foreground">Or Continue With</div>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              <div className="mt-4 flex justify-center">
+                <button type="button" className="inline-flex items-center gap-3 rounded-full border px-4 py-2 hover:shadow-sm">
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.64 9.2045c0-.638-.0576-1.2525-.1656-1.8473H9v3.497h4.844c-.208 1.12-.84 2.07-1.7976 2.71v2.25h2.9052c1.7-1.566 2.688-3.88 2.688-6.61z" fill="#4285F4"/>
+                    <path d="M9 18c2.43 0 4.47-.806 5.96-2.186l-2.9052-2.25C11.46 13.086 10.27 13.5 9 13.5c-2.31 0-4.27-1.56-4.97-3.66H1.072v2.3C2.56 15.78 5.54 18 9 18z" fill="#34A853"/>
+                    <path d="M4.03 10.84a5.41 5.41 0 01-.29-1.84c0-.64.11-1.26.29-1.84V4.86H1.072A9 9 0 000 9c0 1.46.36 2.84 1.072 4.14L4.03 10.84z" fill="#FBBC05"/>
+                    <path d="M9 3.6c1.32 0 2.5.45 3.43 1.34l2.57-2.57C13.46.99 11.43 0 9 0 5.54 0 2.56 2.22 1.072 4.86L4.03 7.6C4.73 5.5 6.69 3.6 9 3.6z" fill="#EA4335"/>
+                  </svg>
+                  <span className="text-sm">Continue with Google</span>
+                </button>
+              </div>
+            </div>
+
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              SecureShare helps teams and individuals store, share, and control access to important documents with end-to-end security and audit trails.
+            </p>
           </form>
         </CardContent>
       </Card>
@@ -220,4 +253,4 @@ const Signup: React.FC = () => {
   );
 };
 
-export default Signup;
+export { default } from "./Auth";
