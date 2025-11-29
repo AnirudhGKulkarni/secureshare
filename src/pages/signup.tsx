@@ -1,14 +1,14 @@
+
 // src/pages/Signup.tsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Shield, User, Briefcase, Globe, Mail, Lock } from "lucide-react";
+import { Shield, User, Briefcase, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { doc, setDoc } from "firebase/firestore";
 
 const domainOptions = ["IT", "Logistics", "HR", "Finance", "Retail", "Healthcare", "Other"] as const;
 
@@ -16,12 +16,14 @@ const Signup: React.FC = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
-  const [companyDomain, setCompanyDomain] = useState("");
   const [domain, setDomain] = useState<typeof domainOptions[number]>("IT");
+  const [customCategory, setCustomCategory] = useState("");
   const [role, setRole] = useState<"admin" | "client">("client");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { signup } = useAuth();
   const navigate = useNavigate();
@@ -38,18 +40,19 @@ const Signup: React.FC = () => {
     }
     setIsLoading(true);
     try {
-      await signup({
+      const user = await signup({
         email: email.trim(),
         password,
         firstName,
         lastName,
         company,
-        companyDomain,
         domain,
         role,
       });
-      toast.success("Account created! Redirecting...");
-      navigate(role === "client" ? "/client" : "/dashboard");
+
+      toast.success("Account created! Please sign in.");
+
+      navigate("/login", { state: { fromSignup: true } });
     } catch (err: any) {
       toast.error(err?.message ?? "Sign up failed");
     } finally {
@@ -65,7 +68,7 @@ const Signup: React.FC = () => {
             <Shield className="h-8 w-8 text-white" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
+            <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
             <CardDescription className="text-base mt-2">
               Register SecureShare — fast and secure
             </CardDescription>
@@ -91,26 +94,19 @@ const Signup: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <div>
-                <Label>Company</Label>
+                <Label>Name of your company</Label>
                 <div className="relative">
                   <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input className="pl-10" value={company} onChange={(e) => setCompany(e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <Label>Company domain</Label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input className="pl-10" value={companyDomain} onChange={(e) => setCompanyDomain(e.target.value)} placeholder="example.com" />
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Domain</Label>
+                <Label>Functional category</Label>
                 <select
                   value={domain}
                   onChange={(e) => setDomain(e.target.value as typeof domainOptions[number])}
@@ -139,6 +135,20 @@ const Signup: React.FC = () => {
               </div>
             </div>
 
+            {domain === "Other" && (
+              <div>
+                <Label>Specify functional category</Label>
+                <div className="relative">
+                  <Input
+                    className="pl-3"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="Enter functional category"
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               <Label>Email</Label>
               <div className="relative">
@@ -152,14 +162,42 @@ const Signup: React.FC = () => {
                 <Label>Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input className="pl-10" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                  <Input
+                    className="pl-10 pr-10"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-3 top-3 flex items-center text-muted-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
               <div>
-                <Label>Confirm</Label>
+                <Label>Confirm Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input className="pl-10" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+                  <Input
+                    className="pl-10 pr-10"
+                    type={showConfirm ? "text" : "password"}
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
+                    onClick={() => setShowConfirm((s) => !s)}
+                    className="absolute right-3 top-3 flex items-center text-muted-foreground"
+                  >
+                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
             </div>

@@ -1,7 +1,7 @@
 // src/pages/Login.tsx
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Shield, Mail, Lock } from "lucide-react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import { Shield, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,9 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromSignup = Boolean((location.state as any)?.fromSignup);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,13 +51,15 @@ const Login: React.FC = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-secondary to-accent p-6">
       <Card className="w-full max-w-md shadow-elevated">
-        <CardHeader className="space-y-4 text-center">
+          <CardHeader className="space-y-4 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-foreground shadow-lg">
             <Shield className="h-8 w-8 text-white" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-            <CardDescription className="text-base mt-2">Sign in to your SecureShare account</CardDescription>
+            <CardTitle className="text-2xl font-bold">{fromSignup ? "Welcome back to SecureShare" : "Welcome to SecureShare"}</CardTitle>
+            <CardDescription className="text-base mt-2">
+              {fromSignup ? "Please sign in to your SecureShare account" : "Sign in or create an account to get started"}
+            </CardDescription>
           </div>
         </CardHeader>
 
@@ -72,7 +77,23 @@ const Login: React.FC = () => {
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10" required />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-3 top-3 flex items-center text-muted-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
@@ -81,7 +102,7 @@ const Login: React.FC = () => {
                 <Link to="/forgot-password" className="underline hover:text-primary">Forgot password?</Link>
               </div>
               <div className="text-sm">
-                <Link to="/signup" className="underline hover:text-primary">Create account</Link>
+                <Link to="/signup" className="underline hover:text-primary">Create an account</Link>
               </div>
             </div>
 
