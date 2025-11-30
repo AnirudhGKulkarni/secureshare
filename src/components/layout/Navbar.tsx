@@ -1,3 +1,4 @@
+// src/components/Navbar.tsx
 import { Bell, LogOut, User, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +16,7 @@ export const Navbar = () => {
   // Use the actual fields your AuthContext provides
   const { currentUser, profile, logout } = useAuth();
   const navigate = useNavigate();
+
   // Prefer profile (Firestore) data, fall back to firebase user fields
   const displayName =
     profile?.name ||
