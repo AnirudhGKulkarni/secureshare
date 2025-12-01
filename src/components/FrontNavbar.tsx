@@ -26,7 +26,7 @@ const Navbar: React.FC = () => {
               Login/Signup
             </Link>
             <Link
-              to="/login"
+              to="/admin-signup"
               className="rounded-md px-3 py-2 text-sm font-medium bg-gradient-to-r from-primary to-accent-foreground text-white shadow"
             >
               Subscribe for Admin Access

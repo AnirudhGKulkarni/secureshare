@@ -13,6 +13,7 @@ import { auth } from "@/lib/firebase";
 // pages
 import Login from "./pages/Login";
 import Signup from "./pages/signup";
+import AdminSignup from "./pages/adminSignup";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
@@ -26,6 +27,7 @@ import ClientSettings from "./pages/ClientSettings";
 import ClientShare from "./pages/ClientShare";
 import NotFound from "./pages/NotFound";
 import FrontPage from "./pages/FrontPage";
+import adminSignup from "./pages/adminSignup";
 
 // components
 import { RoleProtectedRoute } from "./components/RoleProtectedRoute";
@@ -113,6 +115,7 @@ const App = () => (
             {/* Auth pages */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/admin-signup" element={<AdminSignup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
             {/* Admin routes */}
