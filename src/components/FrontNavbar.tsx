@@ -11,7 +11,6 @@ const Navbar: React.FC = () => {
               SecureShare
             </Link>
             <div className="hidden md:flex space-x-4 text-sm text-muted-foreground">
-              <Link to="/dashboard" className="hover:underline">Dashboard</Link>
               <Link to="/reports" className="hover:underline">Reports</Link>
               <Link to="/about" className="hover:underline">About</Link>
             </div>
@@ -22,7 +21,7 @@ const Navbar: React.FC = () => {
               to="/login"
               className="rounded-md px-3 py-2 text-sm font-medium bg-gradient-to-r from-primary to-accent-foreground text-white shadow"
             >
-              Login
+              Login/Signup
             </Link>
           </div>
         </div>
