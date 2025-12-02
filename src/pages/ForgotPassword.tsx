@@ -1,6 +1,6 @@
 // src/pages/ForgotPassword.tsx
 import React, { useState } from "react";
-import { Mail, Shield } from "lucide-react";
+import { Mail, Shield, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,10 +28,15 @@ const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-secondary to-accent p-6">
-      <Card className="w-full max-w-md shadow-elevated bg-card text-foreground">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 p-6 text-gray-100">
+      {/* Back to Home */}
+      <Link to="/login" className="absolute top-4 left-4 z-50 inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-900/70 px-3 py-2 text-sm hover:bg-gray-800 hover:border-blue-500 transition-colors">
+        <ArrowLeft className="w-4 h-4" />
+        Login
+      </Link>
+      <Card className="w-full max-w-md shadow-elevated bg-gray-900 text-gray-100 border border-gray-800">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-foreground shadow-lg">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 shadow-lg">
             <Shield className="h-8 w-8 text-white" />
           </div>
           <div>
@@ -43,18 +48,16 @@ const ForgotPassword: React.FC = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label className="text-foreground">Email</Label>
+              <Label className="text-gray-200">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-10 bg-background text-foreground border-border placeholder:text-muted-foreground" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder:text-gray-500" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <Link to="/login" className="text-sm underline text-primary hover:text-accent-foreground">Back to login</Link>
-            </div>
+            {/* Removed inline back-to-login link; top-left button now routes to Login */}
 
-            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent-foreground" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90" disabled={isLoading}>
               {isLoading ? "Sending..." : "Send reset email"}
             </Button>
           </form>

@@ -4,6 +4,9 @@ import {
   Zap, Globe, BarChart3, FileText, Award, Star
 } from "lucide-react";
 import FrontNavbar from "@/components/FrontNavbar";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { firestore } from "@/lib/firebase";
+
 
 type AttackDataPoint = { label: string; count: number };
 
@@ -52,6 +55,23 @@ const trustedPartners = [
 const FrontPage: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isDarkMode] = useState(true);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [fbLoading, setFbLoading] = useState(false);
+  const [fbName, setFbName] = useState("");
+  const [fbEmail, setFbEmail] = useState("");
+  const [fbMessage, setFbMessage] = useState("");
+  // Update this path to the image you placed in /public (e.g., /screens/demo.png)
+  const screenImageSrc = "/image.png";
+  // Optional: use a laptop frame image from /public. Example: /laptop-frame.png
+  const useImageLaptop = false;
+  const laptopFrameSrc = "/laptop-frame.png";
+  // Adjust these to match your laptop frame's screen area (percentages of the frame image)
+  const screenRect = {
+    top: "9%",
+    left: "5%",
+    width: "90%",
+    height: "66%",
+  } as const;
 
   const carouselItems = [
     {
@@ -298,12 +318,7 @@ const FrontPage: React.FC = () => {
                   </div>
                   <h3 className={`text-xl font-bold mb-3 ${isDarkMode ? "text-white" : "text-gray-900"}`}>{feature.title}</h3>
                   <p className={isDarkMode ? "text-gray-400 mb-4" : "text-gray-600 mb-4"}>{feature.description}</p>
-                  <div className={`pt-4 border-t ${isDarkMode ? "border-gray-700" : "border-gray-300"}`}>
-                    <a href="#" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold text-sm group/link">
-                      Learn more 
-                      <span className="group-hover/link:translate-x-1 transition-transform">→</span>
-                    </a>
-                  </div>
+                  {/* Removed "Learn more" link for a cleaner card */}
                 </div>
               );
             })}
@@ -311,36 +326,124 @@ const FrontPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Laptop Mockup Section */}
-      <section id="features" className={`py-16 px-6 ${isDarkMode ? "bg-gray-800" : "bg-gray-50"}`}>
-        <div className="max-w-7xl mx-auto">
-          <h2 className={`text-3xl font-bold mb-12 text-center animate-fade-in ${isDarkMode ? "text-white" : "text-gray-900"}`}>Experience SecureShare</h2>
-          <div className={`${cardBgClass} rounded-2xl shadow-2xl overflow-hidden border-8 border-gray-400 hover:shadow-3xl transition-all duration-300`}>
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-96 flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-10 left-20 w-40 h-40 bg-white rounded-full mix-blend-multiply filter blur-2xl"></div>
+      {/* Live Demo CTA (between Services and Testimonials) */}
+      <section className={`relative w-full py-24 px-6 ${isDarkMode ? "bg-gray-900" : "bg-gray-900 text-white"}`}>
+        {/* soft background accents */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-10 -left-10 w-80 h-80 bg-red-600/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-16 right-0 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="text-center mb-10">
+            
+            <h2 className="mt-2 text-3xl md:text-4xl font-extrabold leading-tight">
+              Experience the future of proactive cybersecurity
+            </h2>
+            <p className="mt-3 text-gray-300 max-w-3xl mx-auto">
+              A modern and trusted secure-sharing platform that lets you exchange files, documents, and sensitive data with confidence. With strong encryption, smart access control, and a smooth user experience, it ensures every interaction stays private, protected, and effortless.
+            </p>
+            
+          </div>
+
+          {/* laptop-style mockup */}
+          <div className="relative mt-6 flex justify-center">
+            <div className="relative w-full max-w-5xl">
+              <div className="rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-800 to-gray-900 shadow-2xl overflow-hidden">
+                <div className="p-6 md:p-10 relative">
+                  {useImageLaptop ? (
+                    <>
+                      {/* Laptop frame from /public */}
+                      <img
+                        src={laptopFrameSrc}
+                        alt="Laptop device frame"
+                        className="w-full h-auto block select-none pointer-events-none"
+                        draggable={false}
+                      />
+                      {/* Screen overlay */}
+                      <div
+                        className="absolute z-10 overflow-hidden rounded-[12px] ring-1 ring-gray-800/60"
+                        style={{
+                          top: screenRect.top,
+                          left: screenRect.left,
+                          width: screenRect.width,
+                          height: screenRect.height,
+                        }}
+                      >
+                        <img
+                          src={screenImageSrc}
+                          alt="SecureShare product screenshot"
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Fallback: vector laptop with simulated UI and overlayed screen image */}
+                      <div
+                        className="absolute z-10 overflow-hidden rounded-[12px] ring-1 ring-gray-800/60"
+                        style={{ top: "7.7%", left: "3.33%", width: "93.33%", height: "73.08%" }}
+                      >
+                        <img
+                          src={screenImageSrc}
+                          alt="SecureShare product screenshot"
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                      <svg viewBox="0 0 1200 520" className="w-full h-auto" role="img" aria-label="Product demo mockup">
+                        <defs>
+                          <linearGradient id="screenGrad" x1="0" x2="1">
+                            <stop offset="0%" stopColor="#0f172a" />
+                            <stop offset="100%" stopColor="#111827" />
+                          </linearGradient>
+                          <linearGradient id="accentGrad" x1="0" x2="1">
+                            <stop offset="0%" stopColor="#2563eb" />
+                            <stop offset="100%" stopColor="#7c3aed" />
+                          </linearGradient>
+                        </defs>
+                        <rect x="20" y="20" width="1160" height="420" rx="18" fill="#0b1220" stroke="#1f2937" />
+                        <rect x="40" y="40" width="1120" height="380" rx="12" fill="url(#screenGrad)" />
+                        <circle cx="60" cy="60" r="6" fill="#ef4444" />
+                        <circle cx="80" cy="60" r="6" fill="#f59e0b" />
+                        <circle cx="100" cy="60" r="6" fill="#10b981" />
+                        <rect x="60" y="90" width="180" height="310" rx="10" fill="#111827" stroke="#1f2937" />
+                        <rect x="80" y="110" width="140" height="14" rx="7" fill="#334155" />
+                        <rect x="80" y="140" width="120" height="10" rx="5" fill="#1f2937" />
+                        <rect x="80" y="170" width="120" height="10" rx="5" fill="#1f2937" />
+                        <rect x="80" y="200" width="120" height="10" rx="5" fill="#1f2937" />
+                        <rect x="80" y="230" width="120" height="10" rx="5" fill="#1f2937" />
+                        <rect x="80" y="260" width="120" height="10" rx="5" fill="#1f2937" />
+                        <rect x="80" y="290" width="120" height="10" rx="5" fill="#1f2937" />
+                        <rect x="80" y="320" width="120" height="10" rx="5" fill="#1f2937" />
+                        <rect x="80" y="350" width="120" height="10" rx="5" fill="#1f2937" />
+                        <rect x="260" y="110" width="860" height="80" rx="10" fill="#0b1220" stroke="#1f2937" />
+                        <rect x="280" y="130" width="200" height="16" rx="8" fill="#334155" />
+                        <rect x="500" y="130" width="140" height="16" rx="8" fill="#334155" />
+                        <rect x="660" y="130" width="120" height="16" rx="8" fill="#334155" />
+                        <rect x="800" y="130" width="120" height="16" rx="8" fill="#334155" />
+                        <rect x="260" y="210" width="860" height="180" rx="12" fill="#0b1220" stroke="#1f2937" />
+                        <path d="M280 360 C 360 260, 440 300, 520 260 S 700 230, 780 300 S 940 260, 1100 320" stroke="url(#accentGrad)" strokeWidth="6" fill="none" />
+                        <rect x="280" y="240" width="60" height="8" rx="4" fill="#334155" />
+                        <rect x="350" y="240" width="40" height="8" rx="4" fill="#334155" />
+                        <rect x="400" y="240" width="50" height="8" rx="4" fill="#334155" />
+                        <rect x="940" y="110" width="180" height="80" rx="10" fill="#111827" stroke="#1f2937" />
+                        <rect x="960" y="130" width="80" height="12" rx="6" fill="#334155" />
+                        <rect x="960" y="150" width="60" height="10" rx="5" fill="#1f2937" />
+                        <rect x="100" y="440" width="1000" height="16" rx="8" fill="#0b1220" />
+                      </svg>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="text-center text-white px-8 relative z-10">
-                <Shield className="w-16 h-16 mx-auto mb-4 animate-bounce" />
-                <h3 className="text-2xl font-bold mb-2">Secure Document Management</h3>
-                <p className="text-lg opacity-90">View all your shared documents in one secure dashboard</p>
-              </div>
-            </div>
-            <div className={`p-8 ${isDarkMode ? "bg-gray-700" : "bg-white"}`}>
-              <h4 className={`text-lg font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>Key Features:</h4>
-              <ul className="space-y-3">
-                {["Real-time encryption", "Instant access revocation", "Detailed audit logs", "Team collaboration"].map((feature, idx) => (
-                  <li key={idx} className={`flex items-center gap-3 transition-all duration-300 hover:translate-x-2 ${isDarkMode ? "text-gray-300 hover:text-blue-400" : "text-gray-900 hover:text-blue-600"}`}>
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
+              
             </div>
           </div>
         </div>
       </section>
 
+     
       {/* Testimonials Section - Enhanced */}
       <section id="testimonials" className={`py-20 px-6 ${bgClass}`}>
         <div className="max-w-7xl mx-auto">
@@ -376,7 +479,7 @@ const FrontPage: React.FC = () => {
 
       {/* Footer - Enhanced */}
       <footer className={`${isDarkMode ? "bg-gray-900 border-t border-gray-800" : "bg-gray-900 border-t border-gray-800"} text-white py-16 px-6`}>
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
           {/* Brand / About */}
           <div className="animate-fade-in" id="about">
             <div className="flex items-center gap-2 mb-4 group cursor-pointer">
@@ -386,50 +489,42 @@ const FrontPage: React.FC = () => {
               <span className="text-xl font-bold group-hover:text-blue-400 transition-colors">SecureShare</span>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">Enterprise-grade file sharing with military-grade encryption and complete compliance.</p>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setFeedbackOpen(true)}
+                className="rounded-full px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow hover:opacity-90 transition"
+              >
+                Send Feedback
+              </button>
+            </div>
           </div>
 
-          {/* Resources */}
-          <div>
-            <h3 className="text-lg font-bold mb-6 text-white">Resources</h3>
-            <ul className="space-y-3">
-              {["Blog & Articles", "Security Reports", "Documentation", "API Reference", "Find a Partner"].map((item) => (
-                <li key={item}>
-                  <a href="#" className="text-gray-400 hover:text-blue-400 transition-colors duration-300 flex items-center gap-2 group">
-                    <span className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">→</span>
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Support & Solutions */}
-          <div>
-            <h3 className="text-lg font-bold mb-6 text-white">Support</h3>
-            <ul className="space-y-3">
-              {["Help Center", "Contact Support", "System Status", "Community Forum", "Send Feedback"].map((item) => (
-                <li key={item}>
-                  <a href="#" className="text-gray-400 hover:text-blue-400 transition-colors duration-300 flex items-center gap-2 group">
-                    <span className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">→</span>
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
+          {/* Contact & Feedback */}
+          <div className="flex flex-col gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-white font-semibold">Contact support</div>
+              <div className="text-gray-400">superadmin@secureshare.com</div>
+              <div className="text-gray-400">91+1234567890</div>
+            </div>
+            {/* Removed duplicate middle Send Feedback button */}
           </div>
 
           {/* Company */}
           <div>
             <h3 className="text-lg font-bold mb-6 text-white">Company</h3>
             <ul className="space-y-3">
-              {["About Us", "Careers", "Press Kit", "Awards", "Trust Center"].map((item) => (
-                <li key={item}>
-                  <a href="#" className="text-gray-400 hover:text-blue-400 transition-colors duration-300 flex items-center gap-2 group">
-                    <span className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">→</span>
-                    {item}
-                  </a>
-                </li>
-              ))}
+              <li>
+                <a
+                  href="/ABOUT%20US.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-blue-400 transition-colors duration-300 flex items-center gap-2 group"
+                >
+                  <span className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                  About Us
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -438,35 +533,42 @@ const FrontPage: React.FC = () => {
         <div className="border-t border-gray-700 pt-8 mt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
             {/* Social Links */}
-            <div className="flex gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               {[
                 { icon: "f", label: "Facebook" },
                 { icon: "in", label: "LinkedIn" },
                 { icon: "𝕏", label: "Twitter" },
                 { icon: "📷", label: "Instagram" }
               ].map((social) => (
-                <a 
-                  key={social.label} 
-                  href="#" 
+                <a
+                  key={social.label}
+                  href="#"
                   title={social.label}
                   className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95"
                 >
                   {social.icon}
                 </a>
               ))}
-            </div>
-
-            {/* Removed footer language selector (navbar translate handles this) */}
-          </div>
-
-          {/* Bottom Links */}
-          <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-500 gap-6">
-            <div className="flex gap-6 text-center md:text-left flex-wrap justify-center md:justify-start">
-              {["Privacy Policy", "Terms of Service", "Security", "Compliance", "Accessibility"].map((link) => (
-                <a key={link} href="#" className="hover:text-blue-400 transition-colors duration-300">
-                  {link}
-                </a>
-              ))}
+              {/* Policy Links */}
+              <a
+                href="/PRIVACY%20POLICY.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-blue-400 transition-colors duration-300"
+              >
+                Privacy Policy
+              </a>
+              <a
+                href="/TERMS%20AND%20CONDITIONS.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-blue-400 transition-colors duration-300"
+              >
+                Terms and Conditions
+              </a>
+              <a href="#" className="hover:text-blue-400 transition-colors duration-300">Security</a>
+              <a href="#" className="hover:text-blue-400 transition-colors duration-300">Compliance</a>
+              <a href="#" className="hover:text-blue-400 transition-colors duration-300">Accessibility</a>
             </div>
             <p className="flex items-center gap-2">
               <span className="text-blue-400">©</span> 2025 SecureShare. All rights reserved.
@@ -474,6 +576,113 @@ const FrontPage: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Feedback Modal */}
+      {feedbackOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => !fbLoading && setFeedbackOpen(false)} />
+          <div className="relative w-full max-w-lg rounded-2xl border border-gray-800 bg-gray-900 text-white shadow-2xl animate-fade-in">
+            <div className="p-6 md:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold">Send Feedback</h3>
+                  <p className="text-sm text-gray-400 mt-1">We value your thoughts. Share ideas, issues, or praise.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !fbLoading && setFeedbackOpen(false)}
+                  className="text-gray-400 hover:text-white"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form
+                className="mt-6 space-y-4"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!fbMessage.trim()) {
+                    alert("Please enter your feedback.");
+                    return;
+                  }
+                  try {
+                    setFbLoading(true);
+                    await addDoc(collection(firestore, "feedback"), {
+                      name: fbName.trim() || null,
+                      email: fbEmail.trim() || null,
+                      message: fbMessage.trim(),
+                      createdAt: serverTimestamp(),
+                      page: "FrontPage",
+                    });
+                    setFbName("");
+                    setFbEmail("");
+                    setFbMessage("");
+                    setFeedbackOpen(false);
+                    alert("Thanks for your feedback!");
+                  } catch (err) {
+                    console.error("Failed to submit feedback:", err);
+                    alert("Couldn't send feedback. Please try again.");
+                  } finally {
+                    setFbLoading(false);
+                  }
+                }}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm mb-1 text-gray-300">Name</label>
+                    <input
+                      value={fbName}
+                      onChange={(e) => setFbName(e.target.value)}
+                      className="w-full rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1 text-gray-300">Email</label>
+                    <input
+                      type="email"
+                      value={fbEmail}
+                      onChange={(e) => setFbEmail(e.target.value)}
+                      className="w-full rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1 text-gray-300">Your feedback</label>
+                  <textarea
+                    value={fbMessage}
+                    onChange={(e) => setFbMessage(e.target.value)}
+                    required
+                    rows={5}
+                    className="w-full rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    placeholder="Tell us what’s working and what could be better"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => !fbLoading && setFeedbackOpen(false)}
+                    className="rounded-full px-4 py-2 border border-gray-700 text-gray-300 hover:bg-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={fbLoading}
+                    className="rounded-full px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow disabled:opacity-60"
+                  >
+                    {fbLoading ? "Sending..." : "Send Feedback"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

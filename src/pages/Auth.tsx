@@ -493,34 +493,20 @@ const Auth: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <Label>Functional category</Label>
-                        <select
-                          value={domain}
-                          onChange={(e) => setDomain(e.target.value)}
-                          className="w-full rounded-md border px-3 py-2 bg-gray-900 border-gray-700 text-gray-100"
-                          required
-                        >
-                          <option value="" disabled>Select</option>
-                          {domainOptions.map((d) => (
-                            <option key={d} value={d}>{d}</option>
-                          ))}
-                        </select>
-                    </div>
-
-                    <div>
-                      <Label>Role</Label>
-                      <div className="flex items-center gap-4 mt-2">
-                        <label className="flex items-center gap-2">
-                          <input type="radio" name="role" value="client" checked={role === "client"} onChange={() => setRole("client")} />
-                          <span className="text-sm">Client</span>
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input type="radio" name="role" value="admin" checked={role === "admin"} onChange={() => setRole("admin")} />
-                          <span className="text-sm">Admin</span>
-                        </label>
-                      </div>
+                      <select
+                        value={domain}
+                        onChange={(e) => setDomain(e.target.value)}
+                        className="w-full rounded-md border px-3 py-2 bg-gray-900 border-gray-700 text-gray-100"
+                        required
+                      >
+                        <option value="" disabled>Select</option>
+                        {domainOptions.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 

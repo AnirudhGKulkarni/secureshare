@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, Globe, Menu, X } from "lucide-react";
-import GoogleTranslate from "./GoogleTranslate";
+import { ChevronDown, Menu, X } from "lucide-react";
 
 interface FrontNavbarProps {
   isDarkMode?: boolean;
@@ -115,20 +114,8 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
             ))}
           </div>
 
-          {/* Right Side - Language & Auth */}
+          {/* Right Side - Auth */}
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Google Translate (desktop) */}
-            <div className="hidden md:flex items-center">
-              <div className="p-[1px] rounded-lg bg-gradient-to-r from-blue-600 to-purple-600">
-                <div className={`flex items-center gap-1 rounded-lg px-2 py-1 ${
-                  isDarkMode ? "bg-gray-900/70" : "bg-white/80"
-                }`}
-                >
-                  <Globe className={`w-4 h-4 ${isDarkMode ? "text-blue-300" : "text-blue-700"}`} />
-                  <GoogleTranslate />
-                </div>
-              </div>
-            </div>
 
             {/* Desktop Auth Buttons */}
             <div className="hidden md:flex gap-2 sm:gap-3">
@@ -140,7 +127,7 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                     : "text-gray-700 border border-gray-300 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50"
                 }`}
               >
-                Login
+                Login/Signup
               </Link>
               <Link
                 to="/admin-signup"
@@ -168,16 +155,6 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
           <div className={`lg:hidden pb-4 border-t animate-slide-in-left ${
             isDarkMode ? "border-gray-800" : "border-gray-200"
           }`}>
-            {/* Google Translate (mobile) */}
-            <div className="px-4 pt-4 pb-2">
-              <div
-                className={`rounded-lg px-2 py-2 border ${
-                  isDarkMode ? "border-gray-700 bg-gray-800/60" : "border-gray-200 bg-white/80"
-                }`}
-              >
-                <GoogleTranslate compact={true} />
-              </div>
-            </div>
             {navItems.map((item) => (
               <div key={item.label}>
                 <button
