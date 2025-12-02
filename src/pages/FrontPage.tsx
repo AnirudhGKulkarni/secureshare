@@ -566,9 +566,6 @@ const FrontPage: React.FC = () => {
               >
                 Terms and Conditions
               </a>
-              <a href="#" className="hover:text-blue-400 transition-colors duration-300">Security</a>
-              <a href="#" className="hover:text-blue-400 transition-colors duration-300">Compliance</a>
-              <a href="#" className="hover:text-blue-400 transition-colors duration-300">Accessibility</a>
             </div>
             <p className="flex items-center gap-2">
               <span className="text-blue-400">©</span> 2025 SecureShare. All rights reserved.
