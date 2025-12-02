@@ -33,7 +33,7 @@ const plans = [
     ],
     cta: "Start Free Trial",
     featured: true,
-    badge: "Most Popular",
+    badge: "Best Choice",
   },
 ];
 
