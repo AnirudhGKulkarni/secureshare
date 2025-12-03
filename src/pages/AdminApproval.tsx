@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle, XCircle, Eye, FileText, Download, User, Mail, Briefcase, Calendar } from 'lucide-react';
-import { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { firestore, auth } from '@/lib/firebase';
 import { toast } from 'sonner';
@@ -71,8 +71,26 @@ const AdminApproval = () => {
     }
   };
 
+  // Create a secure Pricing invite token for this admin
+  const createPricingInvite = async (request: AdminRequest) => {
+    // 7 days expiry by default
+    const expiresAt = Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+    const inviteDoc = await addDoc(collection(firestore, 'pricing_invites'), {
+      email: request.email,
+      adminName: `${request.firstName} ${request.lastName}`,
+      createdAt: serverTimestamp(),
+      createdBy: 'super_admin',
+      expiresAt,
+      revoked: false,
+      used: false,
+      requestId: request.id,
+    });
+    const inviteLink = `${window.location.origin}/pricing?invite=${inviteDoc.id}`;
+    return { id: inviteDoc.id, link: inviteLink };
+  };
+
   const handleApprove = async (request: AdminRequest) => {
-    if (!confirm(`Approve admin registration for ${request.firstName} ${request.lastName}?`)) {
+    if (!confirm(`Approve admin and send Pricing invite to ${request.firstName} ${request.lastName}?`)) {
       return;
     }
 
@@ -107,10 +125,35 @@ const AdminApproval = () => {
         approvedBy: 'super_admin',
       });
 
-      toast.success(`Admin approved! Temporary password: ${tempPassword}`);
+      // Create invite for secure Pricing page and send via email
+      const invite = await createPricingInvite(request);
+
+      toast.success(`Admin approved and invite created!`);
       
-      // TODO: Send email with credentials
-      console.log(`Send email to ${request.email} with password: ${tempPassword}`);
+      // Send email via configured serverless endpoint if available
+      const emailEndpoint = import.meta.env.VITE_EMAIL_FUNCTION_URL as string | undefined;
+      if (emailEndpoint) {
+        try {
+          const res = await fetch(emailEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: request.email,
+              name: `${request.firstName} ${request.lastName}`,
+              tempPassword,
+              inviteLink: invite.link,
+            }),
+          });
+          if (!res.ok) throw new Error(`Email send failed (${res.status})`);
+          toast.success('Invite email sent');
+        } catch (e: any) {
+          console.error('Email send error:', e);
+          toast.warning('Approved, but email sending failed. Please resend manually.');
+        }
+      } else {
+        console.log(`Email to ${request.email}: temp password: ${tempPassword}, invite link: ${invite.link}`);
+        toast.message('Email endpoint not configured. Logged payload to console.');
+      }
 
       fetchRequests();
       setSelectedRequest(null);
@@ -177,6 +220,56 @@ const AdminApproval = () => {
       case 'rejected': return 'bg-red-100 text-red-700 border-red-300';
       default: return 'bg-gray-100 text-gray-700 border-gray-300';
     }
+  };
+
+  // Resend invite email for an approved admin
+  const resendInvite = async (request: AdminRequest) => {
+    setProcessing(true);
+    try {
+      // Find latest active invite for this request
+      const invitesQ = query(
+        collection(firestore, 'pricing_invites'),
+        where('requestId', '==', request.id),
+        where('revoked', '==', false)
+      );
+      const snap = await getDocs(invitesQ);
+      if (snap.empty) {
+        // Create a new invite if none exists
+        const invite = await createPricingInvite(request);
+        await sendInviteEmail(request, invite.link, undefined);
+        toast.success('New invite created and email sent');
+      } else {
+        const inviteDoc = snap.docs[0];
+        const inviteLink = `${window.location.origin}/pricing?invite=${inviteDoc.id}`;
+        await sendInviteEmail(request, inviteLink, undefined);
+        toast.success('Invite email resent');
+      }
+    } catch (e: any) {
+      console.error('Resend invite error:', e);
+      toast.error(e?.message || 'Failed to resend invite');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const sendInviteEmail = async (request: AdminRequest, inviteLink: string, tempPassword?: string) => {
+    const emailEndpoint = import.meta.env.VITE_EMAIL_FUNCTION_URL as string | undefined;
+    if (!emailEndpoint) {
+      console.log(`Email payload -> to: ${request.email}, name: ${request.firstName} ${request.lastName}, inviteLink: ${inviteLink}, tempPassword: ${tempPassword ?? ''}`);
+      toast.message('Email endpoint not configured. Logged payload to console.');
+      return;
+    }
+    const res = await fetch(emailEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: request.email,
+        name: `${request.firstName} ${request.lastName}`,
+        tempPassword,
+        inviteLink,
+      }),
+    });
+    if (!res.ok) throw new Error(`Email send failed (${res.status})`);
   };
 
   return (
@@ -257,7 +350,7 @@ const AdminApproval = () => {
                         <Eye className="h-4 w-4 mr-2" />
                         View Details
                       </Button>
-                      {request.status === 'pending' && (
+                      {request.status === 'pending' ? (
                         <>
                           <Button
                             variant="default"
@@ -279,7 +372,17 @@ const AdminApproval = () => {
                             Reject
                           </Button>
                         </>
-                      )}
+                      ) : request.status === 'approved' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => resendInvite(request)}
+                          disabled={processing}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Resend Invite
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>
@@ -387,6 +490,14 @@ const AdminApproval = () => {
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Approve Admin
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => resendInvite(selectedRequest)}
+                      disabled={processing}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Resend Invite
                     </Button>
                     <Button
                       variant="destructive"

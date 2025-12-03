@@ -1,0 +1,22 @@
+{
+  "name": "secureshare-functions",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "firebase-functions": "^4.4.1",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "eslint": "^9.14.0",
+    "@types/node": "^20.11.30"
+  }
+}

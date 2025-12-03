@@ -91,11 +91,11 @@ I've created two rules files for you:
    - Document ID: [Your Firebase Auth UID]
    - Fields:
      ```
-     email: "superadmin@secureshare.com"
+    email: "superadmin@trustnshare.com"
      firstName: "Super"
      lastName: "Admin"
      role: "super_admin"
-     company: "SecureShare"
+    company: "TrustNShare"
      domain: "System"
      status: "active"
      createdAt: [timestamp]

@@ -9,7 +9,7 @@ Since the super admin cannot be created through the normal signup flow, you need
 1. **Create Authentication User:**
    - Go to Firebase Console → Authentication → Users
    - Click "Add User"
-   - Email: `superadmin@secureshare.com`
+  - Email: `superadmin@trustnshare.com`
    - Password: Create a secure password (e.g., `SuperAdmin@2024`)
    - Copy the UID of the created user
 

@@ -64,12 +64,12 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
             <div className={`p-2 rounded-lg transition-all duration-300 ${
               isDarkMode ? "bg-blue-600/20 hover:bg-blue-600/30" : "bg-blue-50 hover:bg-blue-100"
             }`}>
-              <img src="/favicon.ico" alt="SecureShare" className="w-6 h-6" />
+              <img src="/favicon.ico" alt="TrustNShare" className="w-6 h-6" />
             </div>
             <Link to="/" className={`text-xl font-bold transition-colors duration-300 ${
               isDarkMode ? "text-white hover:text-blue-400" : "text-gray-900 hover:text-blue-600"
             }`}>
-              SecureShare
+              TrustNShare
             </Link>
           </div>
 
@@ -104,18 +104,21 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                           }`}
                         >
                           {item.submenu.map((subitem, idx) => (
-                            <Link
+                            <button
                               key={subitem.label}
-                              to={subitem.href}
-                              className={`block px-4 py-3 text-sm transition-all duration-300 ${
+                              type="button"
+                              className={`w-full text-left px-4 py-3 text-sm transition-all duration-300 ${
                                 isDarkMode
                                   ? "text-gray-300 hover:text-white hover:bg-gray-700/50"
                                   : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                               } ${idx === 0 ? "rounded-t-lg" : ""} ${idx === item.submenu.length - 1 ? "rounded-b-lg" : ""}`}
-                              onClick={() => setOpenDropdown(null)}
+                              onClick={() => {
+                                scrollToHash(subitem.href);
+                                setOpenDropdown(null);
+                              }}
                             >
                               {subitem.label}
-                            </Link>
+                            </button>
                           ))}
                         </div>
                       )}
@@ -212,18 +215,21 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                       {openDropdown === item.label && item.submenu && (
                         <div className="pl-4 mt-1 animate-slide-in-left">
                           {item.submenu.map((subitem) => (
-                            <Link
+                            <button
                               key={subitem.label}
-                              to={subitem.href}
-                              className={`block px-4 py-2 text-sm rounded-lg transition-all duration-300 ${
+                              type="button"
+                              className={`w-full text-left px-4 py-2 text-sm rounded-lg transition-all duration-300 ${
                                 isDarkMode
                                   ? "text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
                                   : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
                               }`}
-                              onClick={() => setMobileMenuOpen(false)}
+                              onClick={() => {
+                                scrollToHash(subitem.href);
+                                setMobileMenuOpen(false);
+                              }}
                             >
                               {subitem.label}
-                            </Link>
+                            </button>
                           ))}
                         </div>
                       )}

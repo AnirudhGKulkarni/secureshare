@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle, Shield } from "lucide-react";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 
 const pricingPlans = [
@@ -10,7 +10,7 @@ const pricingPlans = [
     period: "per user/month",
     description: "Perfect for small teams",
     features: ["Up to 5 users", "5GB storage per user", "Basic encryption", "Email support"],
-    cta: "Start Free Trial",
+    cta: "Buy this plan",
     featured: false,
   },
   {
@@ -19,7 +19,7 @@ const pricingPlans = [
     period: "per user/month",
     description: "For growing businesses",
     features: ["Unlimited users", "Unlimited storage", "Military-grade encryption", "Priority support", "Advanced audit logs"],
-    cta: "Start Free Trial",
+    cta: "Buy this plan",
     featured: true,
   },
 ];
@@ -48,6 +48,74 @@ const Pricing: React.FC = () => {
   const [fbName, setFbName] = useState("");
   const [fbEmail, setFbEmail] = useState("");
   const [fbMessage, setFbMessage] = useState("");
+
+  // Access gate: only open via shared link from Super Admin
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+  const inviteId = useMemo(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("invite");
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const verifyAccess = async () => {
+      // Require an invite token in the URL
+      if (!inviteId) {
+        setAllowed(false);
+        return;
+      }
+      try {
+        // pricing_invites/{inviteId} created by Super Admin dashboard when sharing
+        const ref = doc(firestore, "pricing_invites", inviteId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          setAllowed(false);
+          return;
+        }
+        const data = snap.data() as any;
+        // Optional expiration check
+        const expiresAt = data?.expiresAt?.toMillis?.() ? new Date(data.expiresAt.toMillis()) : null;
+        if (expiresAt && Date.now() > expiresAt.getTime()) {
+          setAllowed(false);
+          return;
+        }
+        // Optional: one-time use check
+        const revoked = !!data?.revoked;
+        if (revoked) {
+          setAllowed(false);
+          return;
+        }
+        setAllowed(true);
+      } catch (e) {
+        console.warn("Invite verification failed", e);
+        setAllowed(false);
+      }
+    };
+    verifyAccess();
+  }, [inviteId]);
+
+  if (allowed === null) {
+    return (
+      <div className={`${bgClass} min-h-screen flex items-center justify-center`}>
+        <div className="text-sm text-gray-400">Verifying access…</div>
+      </div>
+    );
+  }
+
+  if (!allowed) {
+    return (
+      <div className={`${bgClass} min-h-screen flex items-center justify-center px-6`}>
+        <div className="max-w-md text-center">
+          <h2 className="text-2xl font-bold mb-2">403 — Access Restricted</h2>
+          <p className="text-gray-400 mb-4">This pricing page can only be opened via a valid link shared by the Super Admin.</p>
+          <p className="text-gray-500 text-sm">If you believe this is a mistake, please contact support or request a new invite.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`${bgClass} transition-colors duration-300`}>
@@ -123,15 +191,7 @@ const Pricing: React.FC = () => {
             ))}
           </div>
 
-          <div className={`text-center p-8 rounded-2xl shadow-lg border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 animate-fade-in ${isDarkMode ? "bg-gradient-to-br from-gray-700 to-gray-800 border-gray-600 hover:border-blue-500" : "bg-gradient-to-br from-white to-gray-50 border-gray-200 hover:border-blue-400"}`}>
-            <h3 className={`text-2xl font-bold mb-3 ${isDarkMode ? "text-white" : "text-gray-900"}`}>Need a Custom Plan?</h3>
-            <p className={`mb-6 text-lg ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
-              Contact our sales team to discuss custom pricing and features tailored to your organization's needs.
-            </p>
-            <button className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl">
-              Contact Sales Team
-            </button>
-          </div>
+          {/* Removed: Need a Custom Plan box */}
         </div>
       </section>
 
@@ -221,28 +281,7 @@ const Pricing: React.FC = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className={`py-20 px-6 ${isDarkMode ? "bg-gradient-to-r from-blue-600 to-purple-600" : "bg-gradient-to-r from-blue-600 to-purple-700"} text-white overflow-hidden relative`}>
-        <div className="absolute inset-0 opacity-10 pointer-events-none">
-          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full mix-blend-multiply filter blur-3xl animate-pulse"></div>
-          <div className="absolute -bottom-8 right-10 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto text-center relative z-10 animate-fade-in">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to Get Started?</h2>
-          <p className="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
-            Join thousands of organizations protecting their data with SecureShare. Start your free 14-day trial today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg text-lg hover:shadow-xl">
-              Start Free Trial
-            </button>
-            <button className="px-8 py-4 border-2 border-white text-white font-bold rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:scale-105 active:scale-95 backdrop-blur-sm text-lg">
-              Schedule a Demo
-            </button>
-          </div>
-        </div>
-      </section>
+      {/* Removed: Ready to Get Started CTA section */}
 
       {/* Footer - Enhanced (exact from FrontPage) */}
       <footer className={`${isDarkMode ? "bg-gray-900 border-t border-gray-800" : "bg-gray-900 border-t border-gray-800"} text-white py-16 px-6`}>
@@ -253,7 +292,7 @@ const Pricing: React.FC = () => {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Shield className="w-5 h-5" />
               </div>
-              <span className="text-xl font-bold group-hover:text-blue-400 transition-colors">SecureShare</span>
+              <span className="text-xl font-bold group-hover:text-blue-400 transition-colors">TrustNShare</span>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">Enterprise-grade file sharing with military-grade encryption and complete compliance.</p>
             <div className="mt-4">
@@ -271,7 +310,7 @@ const Pricing: React.FC = () => {
           <div className="flex flex-col gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-white font-semibold">Contact support</div>
-              <div className="text-gray-400">superadmin@secureshare.com</div>
+              <div className="text-gray-400">superadmin@trustnshare.com</div>
               <div className="text-gray-400">91+1234567890</div>
             </div>
             {/* Removed duplicate middle Send Feedback button */}
@@ -344,7 +383,7 @@ const Pricing: React.FC = () => {
                 Back to top
               </button>
               <p className="flex items-center gap-2">
-                <span className="text-blue-400">©</span> 2025 SecureShare. All rights reserved.
+                <span className="text-blue-400">©</span> 2025 TrustNShare. All rights reserved.
               </p>
             </div>
           </div>
