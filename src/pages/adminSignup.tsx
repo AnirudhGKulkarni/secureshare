@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 
 const domainOptions = ["IT", "Logistics", "HR", "Finance", "Retail", "Healthcare", "Other"] as const;
@@ -18,47 +18,12 @@ const AdminSignup: React.FC = () => {
   const [company, setCompany] = useState("");
   const [domain, setDomain] = useState<typeof domainOptions[number]>("IT");
   const [customCategory, setCustomCategory] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [googleDriveLink, setGoogleDriveLink] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-
-
-<<<<<<< Updated upstream
-    let totalSize = 0;
-    for (const file of uploadedDocuments) {
-      totalSize += file.size;
-    }
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-      
-      if (!allowedDocumentTypes.includes(fileExtension)) {
-        toast.error(`File type not allowed: ${file.name}. Allowed types: ${allowedDocumentTypes.join(", ")}`);
-        continue;
-      }
-
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit per file
-        toast.error(`File too large: ${file.name}. Maximum size is 5MB per file.`);
-        continue;
-      }
-
-      if (totalSize + file.size > 5 * 1024 * 1024) { // 5MB total limit
-        toast.error(`Total upload size would exceed 5MB limit.`);
-        break;
-      }
-
-      totalSize += file.size;
-      setUploadedDocuments((prev) => [...prev, file]);
-    }
-  };
-
-  const removeDocument = (index: number) => {
-    setUploadedDocuments((prev) => prev.filter((_, i) => i !== index));
-  };
-=======
->>>>>>> Stashed changes
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,10 +33,6 @@ const AdminSignup: React.FC = () => {
       return;
     }
 
-<<<<<<< Updated upstream
-    if (uploadedDocuments.length === 0) {
-      toast.error("Please upload at least one document for verification");
-=======
     // Validate and verify registered username exists in Firestore
     const uname = username.trim().toLowerCase();
     if (!uname) {
@@ -99,41 +60,16 @@ const AdminSignup: React.FC = () => {
     // Basic Google Drive link validation
     if (!googleDriveLink.includes('drive.google.com') && !googleDriveLink.includes('docs.google.com')) {
       toast.error("Please provide a valid Google Drive link");
->>>>>>> Stashed changes
       return;
     }
 
     setIsLoading(true);
     try {
-<<<<<<< Updated upstream
-      // Convert files to base64 for storage
-      const documentData: { fileName: string; fileSize: number; fileType: string; base64: string }[] = [];
-
-      for (const file of uploadedDocuments) {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result as string;
-            resolve(result);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        documentData.push({
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          base64: base64,
-        });
-      }
-
-=======
->>>>>>> Stashed changes
       // Save to Firebase "approval_documents" collection
       await addDoc(collection(firestore, "approval_documents"), {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        username: uname,
         email: email.trim(),
         company: company.trim(),
         domain: domain,
@@ -199,6 +135,21 @@ const AdminSignup: React.FC = () => {
               </div>
             </div>
 
+            {/* Registered Username directly below Last name */}
+            <div>
+              <Label>Your registered username</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-10 bg-background text-foreground border-border placeholder:text-muted-foreground"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="username used during signup"
+                  required
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-3">
               <div>
                 <Label>Name of your company</Label>
@@ -256,47 +207,6 @@ const AdminSignup: React.FC = () => {
                 </a>
               </div>
               <div className="relative">
-<<<<<<< Updated upstream
-                <label className="flex items-center justify-center w-full px-3 py-3 border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors bg-background text-foreground border-border">
-                  <div className="flex items-center gap-2">
-                    <Upload className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Click to upload or drag and drop</span>
-                  </div>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleDocumentUpload}
-                    accept={allowedDocumentTypes.join(",")}
-                    className="hidden"
-                    required={uploadedDocuments.length === 0}
-                  />
-                </label>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Allowed formats: {allowedDocumentTypes.join(", ")} (Max 5MB total)
-              </p>
-            </div>
-
-            {uploadedDocuments.length > 0 && (
-              <div className="space-y-2">
-                <Label>Uploaded documents ({uploadedDocuments.length})</Label>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {uploadedDocuments.map((doc, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-800 rounded-md border border-gray-700">
-                      <span className="text-sm truncate flex-1">{doc.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeDocument(index)}
-                        className="ml-2 p-1 hover:bg-gray-900 rounded transition-colors"
-                      >
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-=======
                 <Input
                   className="bg-background text-foreground border-border placeholder:text-muted-foreground"
                   type="url"
@@ -315,8 +225,6 @@ const AdminSignup: React.FC = () => {
                 </p>
               </div>
             </div>
-
->>>>>>> Stashed changes
 
             <Button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90 transition-opacity shadow-md">
               {isLoading ? "Submitting..." : "Submit for Approval"}
