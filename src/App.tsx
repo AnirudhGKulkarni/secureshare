@@ -33,6 +33,10 @@ import adminSignup from "./pages/adminSignup";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import AdminApproval from "./pages/AdminApproval";
 import EnhancedAuditLogs from "./pages/EnhancedAuditLogs";
+import Chat from "./pages/Chat";
+import LoginHistory from "./pages/LoginHistory";
+import AlertCenter from "./pages/AlertCenter";
+import SecuritySettings from "./pages/SecuritySettings";
 
 // components
 import { RoleProtectedRoute } from "./components/RoleProtectedRoute";
@@ -201,6 +205,38 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <Chat />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/login-history"
+              element={
+                <ProtectedRoute>
+                  <LoginHistory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/alert-center"
+              element={
+                <ProtectedRoute>
+                  <AlertCenter />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/security-settings"
+              element={
+                <ProtectedRoute>
+                  <SecuritySettings />
                 </ProtectedRoute>
               }
             />

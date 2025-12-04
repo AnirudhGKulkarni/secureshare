@@ -54,7 +54,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const snap = await getDoc(ref);
       if (snap.exists()) {
-        setProfile(snap.data());
+        const profileData = snap.data();
+        console.log("AuthContext - loadProfile found profile:", profileData);
+        setProfile(profileData);
         return;
       }
       // If doc does not exist, infer role from token claims when possible.
@@ -66,9 +68,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Try to read token claims from the currently-signed-in user
         // (non-blocking if unavailable).
         if (auth.currentUser) {
-          const id = await auth.currentUser.getIdTokenResult();
-          if ((id.claims as any)?.super_admin) inferredRole = "super_admin";
-          else if ((id.claims as any)?.admin) inferredRole = "admin";
+          // Force refresh token to get latest claims
+          const id = await auth.currentUser.getIdTokenResult(true);
+          console.log("AuthContext - Token claims during profile creation (forced refresh):", id.claims);
+          console.log("AuthContext - User email:", auth.currentUser.email);
+          
+          if ((id.claims as any)?.super_admin) {
+            inferredRole = "super_admin";
+            console.log("AuthContext - Found super_admin token claim");
+          } else if ((id.claims as any)?.admin) {
+            inferredRole = "admin"; 
+            console.log("AuthContext - Found admin token claim");
+          } else {
+            console.log("AuthContext - No admin claims found, defaulting to client");
+          }
+          console.log("AuthContext - Final inferred role:", inferredRole);
         }
       } catch (err) {
         // If token claim read fails, fall back to client role.
@@ -86,6 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: new Date().toISOString(),
       };
 
+      console.log("AuthContext - Creating default profile:", defaultProfile);
       await setDoc(ref, defaultProfile);
       setProfile(defaultProfile);
       return;
@@ -99,7 +114,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // login: signs in and waits for profile load to complete
   const login = async (email: string, password: string) => {
     const cred = await signInWithEmailAndPassword(auth, email, password);
+    console.log("AuthContext - Login successful for:", cred.user.email);
     // Wait for profile to load before returning
+    await loadProfile(cred.user.uid);
+    // Force a second load attempt to ensure fresh data
+    await new Promise(resolve => setTimeout(resolve, 200));
     await loadProfile(cred.user.uid);
     return cred.user;
   };

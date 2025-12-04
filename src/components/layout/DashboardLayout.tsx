@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { SuperAdminSidebar } from './SuperAdminSidebar';
 import { Navbar } from './Navbar';
+import { DashboardFooter } from './DashboardFooter';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardLayoutProps {
@@ -20,6 +21,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         <main className="flex-1 p-6 lg:p-8">
           {children}
         </main>
+        <DashboardFooter />
       </div>
     </div>
   );

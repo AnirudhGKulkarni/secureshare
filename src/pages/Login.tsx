@@ -12,6 +12,8 @@ import { getDoc, doc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { getIdTokenResult } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+// Import debug utility for admin account troubleshooting
+import "@/lib/debugAdmin";
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -30,14 +32,22 @@ const Login: React.FC = () => {
       const user = await login(email.trim(), password);
 
       // Wait a bit for profile to load in AuthContext, then check again
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      console.log("Login - About to check Firestore profile for UID:", user.uid);
 
       // Attempt to read profile from Firestore
       try {
         const snap = await getDoc(doc(firestore, "users", user.uid));
         const profile = snap.exists() ? snap.data() : null;
 
+        console.log("=== LOGIN DEBUG ===");
+        console.log("Login - User UID:", user.uid);
+        console.log("Login - User email:", user.email);
+        console.log("Login - Firestore snap exists:", snap.exists());
         console.log("Login - User profile:", profile);
+        console.log("Login - Profile role:", profile?.role);
+        console.log("Login - Profile data keys:", profile ? Object.keys(profile) : 'no profile');
 
         if (profile && profile.role === "super_admin") {
           toast.success("Welcome Super Admin!");
@@ -60,8 +70,10 @@ const Login: React.FC = () => {
         // If profile missing or ambiguous, fall back to token claims
         console.log("Profile not found or role unclear, checking token claims...");
         try {
-          const id = await getIdTokenResult(auth.currentUser!);
-          console.log("Token claims:", id.claims);
+          const id = await getIdTokenResult(auth.currentUser!, true); // Force refresh
+          console.log("Token claims (refreshed):", id.claims);
+          console.log("Has admin claim:", (id.claims as any)?.admin);
+          console.log("Has super_admin claim:", (id.claims as any)?.super_admin);
           
           if ((id.claims as any)?.super_admin) {
             toast.success("Welcome Super Admin!");

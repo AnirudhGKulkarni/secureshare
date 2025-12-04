@@ -124,7 +124,7 @@ const EnhancedAuditLogs = () => {
         {
           id: '5',
           userId: 'super1',
-          userEmail: 'superadmin@secureshare.com',
+          userEmail: 'superadmin@trustnshare.com',
           userName: 'Super Admin',
           userRole: 'super_admin',
           action: 'ADMIN_APPROVAL',

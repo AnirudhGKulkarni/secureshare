@@ -20,9 +20,12 @@ export const SuperAdminSidebar = () => {
     <aside className="hidden lg:flex lg:flex-col w-64 bg-card border-r border-border">
       <div className="flex h-16 items-center px-6 border-b border-border">
         <Shield className="h-6 w-6 text-purple-600 mr-2" />
-        <span className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
-          Super Admin
-        </span>
+        <div className="flex flex-col">
+          <span className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
+            TrustNshare
+          </span>
+          <span className="text-xs text-purple-600 font-medium">Super Admin</span>
+        </div>
       </div>
       
       <nav className="flex-1 space-y-1 px-3 py-4">
