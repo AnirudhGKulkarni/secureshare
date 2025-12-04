@@ -30,6 +30,7 @@ const Auth: React.FC = () => {
   const [customCategory, setCustomCategory] = useState("");
   const [role, setRole] = useState<"admin" | "client">("client");
   const [confirm, setConfirm] = useState("");
+  const [username, setUsername] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -321,8 +322,23 @@ const Auth: React.FC = () => {
       toast.error("Password should be at least 6 characters");
       return;
     }
+    const uname = username.trim().toLowerCase();
+    if (!uname) {
+      toast.error("Please choose a username");
+      return;
+    }
+    // No strict format rules — only require a non-empty username
     setIsLoading(true);
     try {
+      // Check username uniqueness before creating auth user
+      const unameRef = doc(firestore, "usernames", uname);
+      const unameSnap = await getDoc(unameRef);
+      if (unameSnap.exists()) {
+        toast.error("Username already taken");
+        setIsLoading(false);
+        return;
+      }
+
       const user = await signup({
         email: email.trim(),
         password,
@@ -333,6 +349,15 @@ const Auth: React.FC = () => {
         role,
       });
 
+      // Reserve username and store on profile
+      try {
+        await setDoc(unameRef, { uid: user.uid }, { merge: false });
+        await setDoc(doc(firestore, "users", user.uid), { username: uname }, { merge: true });
+      } catch (reserveErr) {
+        console.warn("Username reservation failed:", reserveErr);
+        toast.warning("Account created, but username couldn’t be reserved.");
+      }
+
       toast.success("Account created! Please sign in.");
       setMode("signin");
       setShowWelcomeBack(true);
@@ -340,6 +365,7 @@ const Auth: React.FC = () => {
       setEmail("");
       setPassword("");
       setConfirm("");
+      setUsername("");
     } catch (err: any) {
       toast.error(err?.message ?? "Sign up failed");
     } finally {
@@ -483,6 +509,22 @@ const Auth: React.FC = () => {
                         <Input className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Username directly below Last name */}
+                  <div>
+                    <Label>Username</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="username (required)"
+                        required
+                      />
+                    </div>
+                    
                   </div>
 
                   <div>

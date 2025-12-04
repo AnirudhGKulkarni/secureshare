@@ -10,11 +10,11 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { firestore, auth } from '@/lib/firebase';
 import { toast } from 'sonner';
 
-interface Document {
+interface DocumentMeta {
   fileName: string;
   fileSize: number;
   fileType: string;
-  base64: string;
+  url: string;
 }
 
 interface AdminRequest {
@@ -25,7 +25,7 @@ interface AdminRequest {
   company: string;
   domain: string;
   customCategory: string | null;
-  documents: Document[];
+  documents: DocumentMeta[];
   status: 'pending' | 'approved' | 'rejected';
   createdAt: any;
 }
@@ -34,7 +34,7 @@ const AdminApproval = () => {
   const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<AdminRequest | null>(null);
-  const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
+  const [viewingDocument, setViewingDocument] = useState<DocumentMeta | null>(null);
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
@@ -189,10 +189,12 @@ const AdminApproval = () => {
     }
   };
 
-  const downloadDocument = (doc: Document) => {
+  const downloadDocument = (doc: DocumentMeta) => {
     const link = window.document.createElement('a');
-    link.href = doc.base64;
+    link.href = doc.url;
     link.download = doc.fileName;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
     link.click();
   };
 
@@ -524,17 +526,17 @@ const AdminApproval = () => {
               </DialogDescription>
             </DialogHeader>
 
-            {viewingDocument && (
+                {viewingDocument && (
               <div className="flex items-center justify-center bg-gray-100 rounded-lg p-4 min-h-[500px]">
                 {viewingDocument.fileType.startsWith('image/') ? (
                   <img
-                    src={viewingDocument.base64}
+                    src={viewingDocument.url}
                     alt={viewingDocument.fileName}
                     className="max-w-full max-h-[600px] object-contain"
                   />
                 ) : viewingDocument.fileType === 'application/pdf' ? (
                   <iframe
-                    src={viewingDocument.base64}
+                    src={viewingDocument.url}
                     className="w-full h-[600px] border-0"
                     title={viewingDocument.fileName}
                   />

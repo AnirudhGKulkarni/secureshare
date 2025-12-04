@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 
 const domainOptions = ["IT", "Logistics", "HR", "Finance", "Retail", "Healthcare", "Other"] as const;
@@ -17,11 +17,13 @@ const AdminSignup: React.FC = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
-  const [domain, setDomain] = useState<typeof domainOptions[number]>("IT");
+  const [domain, setDomain] = useState<string>("");
   const [customCategory, setCustomCategory] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [uploadedDocuments, setUploadedDocuments] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const navigate = useNavigate();
 
   const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,12 +45,12 @@ const AdminSignup: React.FC = () => {
       }
 
       if (file.size > 10 * 1024 * 1024) { // 10MB limit per file
-        toast.error(`File too large: ${file.name}. Maximum size is 5MB per file.`);
+        toast.error(`File too large: ${file.name}. Maximum size is 10MB per file.`);
         continue;
       }
 
-      if (totalSize + file.size > 5 * 1024 * 1024) { // 5MB total limit
-        toast.error(`Total upload size would exceed 5MB limit.`);
+      if (totalSize + file.size > 25 * 1024 * 1024) { // 25MB total limit
+        toast.error(`Total upload size would exceed 25MB limit.`);
         break;
       }
 
@@ -69,6 +71,25 @@ const AdminSignup: React.FC = () => {
       return;
     }
 
+    // Validate and verify registered username exists in Firestore
+    const uname = username.trim().toLowerCase();
+    if (!uname) {
+      toast.error("Please enter your registered username");
+      return;
+    }
+    // No strict format rules for admin username; only require non-empty and existence
+    try {
+      const unameSnap = await getDoc(doc(firestore, "usernames", uname));
+      if (!unameSnap.exists()) {
+        toast.error("Username not found. Please use the username you registered during signup.");
+        return;
+      }
+    } catch (checkErr) {
+      console.warn("Username verification failed:", checkErr);
+      toast.error("Could not verify username. Please try again.");
+      return;
+    }
+
     if (uploadedDocuments.length === 0) {
       toast.error("Please upload at least one document for verification");
       return;
@@ -76,32 +97,58 @@ const AdminSignup: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // Convert files to base64 for storage
-      const documentData: { fileName: string; fileSize: number; fileType: string; base64: string }[] = [];
+      // Upload files to Vercel Blob (signed URL flow) and collect metadata + URLs
+      const totalFiles = uploadedDocuments.length;
+      const documentData: { fileName: string; fileSize: number; fileType: string; url: string }[] = [];
+      let completed = 0;
 
-      for (const file of uploadedDocuments) {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result as string;
-            resolve(result);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+      const uploadOne = async (file: File) => {
+        // Use a nested path for organization in the Blob store
+        const path = `admin-approvals/${uname}/${Date.now()}-${file.name}`;
 
-        documentData.push({
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          base64: base64,
+        // Upload the raw file to our API which will store it in Vercel Blob
+        const uploadRes = await fetch(`/api/blob-upload?path=${encodeURIComponent(path)}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+          },
+          body: file,
         });
+        if (!uploadRes.ok) {
+          let detail = "";
+          try { detail = await uploadRes.text(); } catch {}
+          throw new Error(`Upload failed (${uploadRes.status}) ${detail}`);
+        }
+        const data = await uploadRes.json();
+        const fileUrl: string = data?.url;
+        if (!fileUrl) throw new Error("Upload succeeded but no URL returned");
+
+        documentData.push({ fileName: file.name, fileSize: file.size, fileType: file.type, url: fileUrl });
+        completed += 1;
+        setUploadProgress(Math.round((completed / totalFiles) * 100));
+      };
+
+      // Limit concurrency to 2
+      const concurrency = Math.min(2, totalFiles);
+      let index = 0;
+      const workers: Promise<void>[] = [];
+      for (let c = 0; c < concurrency; c++) {
+        workers.push(
+          (async () => {
+            while (index < uploadedDocuments.length) {
+              const current = uploadedDocuments[index++];
+              await uploadOne(current);
+            }
+          })()
+        );
       }
+      await Promise.all(workers);
 
       // Save to Firebase "approval_documents" collection
       await addDoc(collection(firestore, "approval_documents"), {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        username: uname,
         email: email.trim(),
         company: company.trim(),
         domain: domain,
@@ -111,7 +158,7 @@ const AdminSignup: React.FC = () => {
         createdAt: serverTimestamp(),
       });
 
-      toast.success("Please wait for the approval");
+      toast.success("Submitted — please wait for approval");
       setTimeout(() => {
         navigate("/", { replace: true });
       }, 1500);
@@ -120,6 +167,7 @@ const AdminSignup: React.FC = () => {
       toast.error(err?.message ?? "Submission failed");
     } finally {
       setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -143,8 +191,14 @@ const AdminSignup: React.FC = () => {
             <CardTitle className="text-2xl font-bold">Welcome to trustNshare</CardTitle>
             <CardTitle className="text-xl font-semibold mt-2">Admin Registration</CardTitle>
             <CardDescription className="text-base mt-2">
-              Register as an admin. Please verify your identity with supporting documents.
+              Register as an admin. Please verify your identity with supporting documents. 
             </CardDescription>
+            <div className="mt-3 text-sm text-muted-foreground">
+              Note: Before proceeding with admin registration, you must have a registered username and password. If you haven't created them yet, please use the Signup tab on the login page.
+              <span className="ml-1">
+                <Link to="/login" className="underline text-primary hover:text-accent-foreground">Go to Login/Signup</Link>
+              </span>
+            </div>
           </div>
         </CardHeader>
 
@@ -167,6 +221,21 @@ const AdminSignup: React.FC = () => {
               </div>
             </div>
 
+            {/* Registered Username directly below Last name */}
+            <div>
+              <Label>Your registered username</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-10 bg-background text-foreground border-border placeholder:text-muted-foreground"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="username used during signup"
+                  required
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-3">
               <div>
                 <Label>Name of your company</Label>
@@ -182,9 +251,11 @@ const AdminSignup: React.FC = () => {
                 <Label>Functional category</Label>
                 <select
                   value={domain}
-                  onChange={(e) => setDomain(e.target.value as typeof domainOptions[number])}
+                  onChange={(e) => setDomain(e.target.value)}
                   className="w-full rounded-md border px-3 py-2 bg-background text-foreground border-border"
+                  required
                 >
+                  <option value="" disabled>Select</option>
                   {domainOptions.map((d) => (
                     <option key={d} value={d}>
                       {d}
@@ -240,7 +311,7 @@ const AdminSignup: React.FC = () => {
                 </label>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Allowed formats: {allowedDocumentTypes.join(", ")} (Max 5MB total)
+                Allowed formats: {allowedDocumentTypes.join(", ")} (Max 10MB per file, 25MB total)
               </p>
             </div>
 
@@ -264,6 +335,14 @@ const AdminSignup: React.FC = () => {
               </div>
             )}
 
+            {isLoading && uploadProgress > 0 && (
+              <div className="w-full h-2 bg-gray-800 rounded-md overflow-hidden mb-2">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
             <Button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90 transition-opacity shadow-md">
               {isLoading ? "Submitting..." : "Submit for Approval"}
             </Button>

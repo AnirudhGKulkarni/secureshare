@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { firestore } from "@/lib/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const domainOptions = ["IT", "Logistics", "HR", "Finance", "Retail", "Healthcare", "Other"] as const;
 
@@ -19,6 +21,7 @@ const Signup: React.FC = () => {
   const [domain, setDomain] = useState<typeof domainOptions[number]>("IT");
   const [customCategory, setCustomCategory] = useState("");
   const [role, setRole] = useState<"admin" | "client">("client");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -38,8 +41,24 @@ const Signup: React.FC = () => {
       toast.error("Password should be at least 6 characters");
       return;
     }
+    // Basic username validation
+    const uname = username.trim().toLowerCase();
+    if (!uname) {
+      toast.error("Please choose a username");
+      return;
+    }
+    // No strict username format rules — just require non-empty
     setIsLoading(true);
     try {
+      // Check username uniqueness before creating auth user
+      const unameRef = doc(firestore, "usernames", uname);
+      const unameSnap = await getDoc(unameRef);
+      if (unameSnap.exists()) {
+        toast.error("Username already taken");
+        setIsLoading(false);
+        return;
+      }
+
       const user = await signup({
         email: email.trim(),
         password,
@@ -49,6 +68,16 @@ const Signup: React.FC = () => {
         domain,
         role,
       });
+
+      // Reserve username and store on profile
+      try {
+        await setDoc(unameRef, { uid: user.uid }, { merge: false });
+        await setDoc(doc(firestore, "users", user.uid), { username: uname }, { merge: true });
+      } catch (reserveErr) {
+        // If reservation fails post-creation, inform user but keep account
+        console.warn("Username reservation failed:", reserveErr);
+        toast.warning("Account created, but username couldn’t be reserved.");
+      }
 
       toast.success("Account created! Please sign in.");
 
@@ -101,6 +130,22 @@ const Signup: React.FC = () => {
                   <Input className="pl-10" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                 </div>
               </div>
+            </div>
+
+            {/* Username directly below Last name */}
+            <div>
+              <Label>Username</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-10"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="username (required)"
+                  required
+                />
+              </div>
+              
             </div>
 
             <div className="grid grid-cols-1 gap-3">
@@ -253,4 +298,4 @@ const Signup: React.FC = () => {
   );
 };
 
-export { default } from "./Auth";
+export default Signup;

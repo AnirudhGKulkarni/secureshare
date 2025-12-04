@@ -151,7 +151,7 @@ const App = () => (
 
             {/* Auth pages */}
             <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+            <Route path="/signup" element={<Navigate to="/login" replace />} />
             <Route path="/admin-signup" element={<AdminSignup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
