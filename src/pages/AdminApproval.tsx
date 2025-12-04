@@ -10,11 +10,12 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { firestore, auth } from '@/lib/firebase';
 import { toast } from 'sonner';
 
-interface Document {
+interface DocumentMeta {
   fileName: string;
   fileSize: number;
   fileType: string;
-  base64: string;
+  base64?: string;
+  url?: string;
 }
 
 interface AdminRequest {
@@ -25,7 +26,9 @@ interface AdminRequest {
   company: string;
   domain: string;
   customCategory: string | null;
-  documents: Document[];
+  username?: string;
+  googleDriveLink?: string;
+  documents?: DocumentMeta[];
   status: 'pending' | 'approved' | 'rejected';
   createdAt: any;
 }
@@ -34,7 +37,7 @@ const AdminApproval = () => {
   const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<AdminRequest | null>(null);
-  const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
+  const [viewingDocument, setViewingDocument] = useState<DocumentMeta | null>(null);
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
@@ -48,11 +51,23 @@ const AdminApproval = () => {
       const querySnapshot = await getDocs(q);
       
       const requestsData: AdminRequest[] = [];
-      querySnapshot.forEach((doc) => {
+      querySnapshot.forEach((d) => {
+        const data = d.data() as any;
+        const documents: DocumentMeta[] = Array.isArray(data.documents) ? data.documents : [];
         requestsData.push({
-          id: doc.id,
-          ...doc.data(),
-        } as AdminRequest);
+          id: d.id,
+          firstName: data.firstName ?? '',
+          lastName: data.lastName ?? '',
+          email: data.email ?? '',
+          company: data.company ?? '',
+          domain: data.domain ?? '',
+          customCategory: data.customCategory ?? null,
+          username: data.username,
+          googleDriveLink: data.googleDriveLink,
+          documents,
+          status: data.status ?? 'pending',
+          createdAt: data.createdAt,
+        });
       });
 
       // Sort by createdAt (newest first)
@@ -189,9 +204,9 @@ const AdminApproval = () => {
     }
   };
 
-  const downloadDocument = (doc: Document) => {
+  const downloadDocument = (doc: DocumentMeta) => {
     const link = window.document.createElement('a');
-    link.href = doc.base64;
+    link.href = doc.url || doc.base64 || '#';
     link.download = doc.fileName;
     link.click();
   };
@@ -336,9 +351,19 @@ const AdminApproval = () => {
                           <span className="font-medium">Category:</span> {request.customCategory}
                         </div>
                       )}
-                      <div>
-                        <span className="font-medium">Documents:</span> {request.documents.length} file(s)
-                      </div>
+                      {request.documents && (
+                        <div>
+                          <span className="font-medium">Documents:</span> {request.documents.length} file(s)
+                        </div>
+                      )}
+                      {request.googleDriveLink && (
+                        <div className="col-span-2">
+                          <span className="font-medium">Drive Link:</span>{' '}
+                          <a href={request.googleDriveLink} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                            Open verification documents
+                          </a>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex gap-2">
@@ -445,9 +470,9 @@ const AdminApproval = () => {
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-medium mb-3">Uploaded Documents ({selectedRequest.documents.length})</h4>
+                  <h4 className="text-sm font-medium mb-3">Uploaded Documents ({selectedRequest.documents?.length || 0})</h4>
                   <div className="space-y-2">
-                    {selectedRequest.documents.map((doc, index) => (
+                    {(selectedRequest.documents ?? []).map((doc, index) => (
                       <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-secondary/50">
                         <div className="flex items-center gap-3">
                           <FileText className="h-5 w-5 text-primary" />
@@ -479,6 +504,16 @@ const AdminApproval = () => {
                       </div>
                     ))}
                   </div>
+                  {!selectedRequest.documents?.length && selectedRequest.googleDriveLink && (
+                    <div className="mt-2 p-3 border rounded-lg bg-secondary/30">
+                      <p className="text-sm">
+                        Documents were submitted via Google Drive link:{' '}
+                        <a href={selectedRequest.googleDriveLink} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                          Open verification documents
+                        </a>
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {selectedRequest.status === 'pending' && (
@@ -528,13 +563,13 @@ const AdminApproval = () => {
               <div className="flex items-center justify-center bg-gray-100 rounded-lg p-4 min-h-[500px]">
                 {viewingDocument.fileType.startsWith('image/') ? (
                   <img
-                    src={viewingDocument.base64}
+                    src={viewingDocument.url || viewingDocument.base64 || ''}
                     alt={viewingDocument.fileName}
                     className="max-w-full max-h-[600px] object-contain"
                   />
                 ) : viewingDocument.fileType === 'application/pdf' ? (
                   <iframe
-                    src={viewingDocument.base64}
+                    src={viewingDocument.url || viewingDocument.base64 || ''}
                     className="w-full h-[600px] border-0"
                     title={viewingDocument.fileName}
                   />
