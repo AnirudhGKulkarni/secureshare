@@ -1,7 +1,7 @@
 // src/pages/adminSignup.tsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Shield, User, Briefcase, Mail, Upload, X, ArrowLeft } from "lucide-react";
+import { Shield, User, Briefcase, Mail, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,6 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 
 const domainOptions = ["IT", "Logistics", "HR", "Finance", "Retail", "Healthcare", "Other"] as const;
-const allowedDocumentTypes = [".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".xlsx", ".xls", ".ppt", ".pptx"];
 
 const AdminSignup: React.FC = () => {
   const [firstName, setFirstName] = useState("");
@@ -20,14 +19,12 @@ const AdminSignup: React.FC = () => {
   const [domain, setDomain] = useState<typeof domainOptions[number]>("IT");
   const [customCategory, setCustomCategory] = useState("");
   const [email, setEmail] = useState("");
-  const [uploadedDocuments, setUploadedDocuments] = useState<File[]>([]);
+  const [googleDriveLink, setGoogleDriveLink] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.currentTarget.files;
-    if (!files) return;
 
+<<<<<<< Updated upstream
     let totalSize = 0;
     for (const file of uploadedDocuments) {
       totalSize += file.size;
@@ -60,6 +57,8 @@ const AdminSignup: React.FC = () => {
   const removeDocument = (index: number) => {
     setUploadedDocuments((prev) => prev.filter((_, i) => i !== index));
   };
+=======
+>>>>>>> Stashed changes
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,13 +68,44 @@ const AdminSignup: React.FC = () => {
       return;
     }
 
+<<<<<<< Updated upstream
     if (uploadedDocuments.length === 0) {
       toast.error("Please upload at least one document for verification");
+=======
+    // Validate and verify registered username exists in Firestore
+    const uname = username.trim().toLowerCase();
+    if (!uname) {
+      toast.error("Please enter your registered username");
+      return;
+    }
+    // No strict format rules for admin username; only require non-empty and existence
+    try {
+      const unameSnap = await getDoc(doc(firestore, "usernames", uname));
+      if (!unameSnap.exists()) {
+        toast.error("Username not found. Please use the username you registered during signup.");
+        return;
+      }
+    } catch (checkErr) {
+      console.warn("Username verification failed:", checkErr);
+      toast.error("Could not verify username. Please try again.");
+      return;
+    }
+
+    if (!googleDriveLink.trim()) {
+      toast.error("Please provide a Google Drive link for verification documents");
+      return;
+    }
+
+    // Basic Google Drive link validation
+    if (!googleDriveLink.includes('drive.google.com') && !googleDriveLink.includes('docs.google.com')) {
+      toast.error("Please provide a valid Google Drive link");
+>>>>>>> Stashed changes
       return;
     }
 
     setIsLoading(true);
     try {
+<<<<<<< Updated upstream
       // Convert files to base64 for storage
       const documentData: { fileName: string; fileSize: number; fileType: string; base64: string }[] = [];
 
@@ -98,6 +128,8 @@ const AdminSignup: React.FC = () => {
         });
       }
 
+=======
+>>>>>>> Stashed changes
       // Save to Firebase "approval_documents" collection
       await addDoc(collection(firestore, "approval_documents"), {
         firstName: firstName.trim(),
@@ -106,7 +138,7 @@ const AdminSignup: React.FC = () => {
         company: company.trim(),
         domain: domain,
         customCategory: customCategory.trim() || null,
-        documents: documentData,
+        googleDriveLink: googleDriveLink.trim(),
         status: "pending",
         createdAt: serverTimestamp(),
       });
@@ -218,12 +250,13 @@ const AdminSignup: React.FC = () => {
 
             <div>
               <div className="flex items-center justify-between">
-                <Label>Upload verification documents</Label>
+                <Label>Google Drive link for verification documents</Label>
                 <a href="/List of Documents that are Accepted.pdf" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-accent-foreground">
                   View Accepted Documents List
                 </a>
               </div>
               <div className="relative">
+<<<<<<< Updated upstream
                 <label className="flex items-center justify-center w-full px-3 py-3 border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors bg-background text-foreground border-border">
                   <div className="flex items-center gap-2">
                     <Upload className="h-4 w-4 text-muted-foreground" />
@@ -263,6 +296,27 @@ const AdminSignup: React.FC = () => {
                 </div>
               </div>
             )}
+=======
+                <Input
+                  className="bg-background text-foreground border-border placeholder:text-muted-foreground"
+                  type="url"
+                  value={googleDriveLink}
+                  onChange={(e) => setGoogleDriveLink(e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                  required
+                />
+              </div>
+              <div className="mt-2 p-3 bg-blue-950/30 border border-blue-800/50 rounded-md">
+                <p className="text-xs text-blue-200">
+                  <strong>Instructions:</strong>
+                  <br />1. Upload your verification documents to Google Drive
+                  <br />2. Set sharing permissions to "Anyone with the link can view"
+                  <br />3. Copy and paste the sharing link in the above text box
+                </p>
+              </div>
+            </div>
+
+>>>>>>> Stashed changes
 
             <Button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90 transition-opacity shadow-md">
               {isLoading ? "Submitting..." : "Submit for Approval"}
