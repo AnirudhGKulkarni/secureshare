@@ -161,6 +161,18 @@ const Pricing: React.FC = () => {
   return (
     <div className={`${bgClass} transition-colors duration-300`}>
 
+      {/* Top-left Home button */}
+      <div className="fixed top-4 left-4 z-50">
+        <a
+          href="/"
+          className="inline-flex items-center gap-2 rounded-full px-4 py-2 border border-gray-700 text-gray-200 hover:text-white hover:border-blue-400 hover:bg-blue-400/10 transition-colors duration-200"
+          aria-label="Go to Home"
+        >
+          <span className="text-blue-400">←</span>
+          Home
+        </a>
+      </div>
+
       {/* Hero Section */}
       <section className={`relative w-full py-20 px-6 ${isDarkMode ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" : "bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700"} text-white overflow-hidden`}>
         <div className="absolute inset-0 opacity-10 pointer-events-none">
@@ -173,8 +185,11 @@ const Pricing: React.FC = () => {
             Simple, Transparent Pricing
           </h1>
           <p className="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
-            Choose the plan that fits your organization. No hidden fees, no surprises.
+            Choose the plan that fits your organization. No hidden fees, no surprises.<br></br>
+            You have been approved by the Super Admin.<br></br>
+            Activate your plan to start managing your organization with admin access.<br></br>
           </p>
+          
         </div>
       </section>
 
@@ -273,7 +288,7 @@ const Pricing: React.FC = () => {
         </div>
       </section>
 
-      {/* FAQ Section */}
+          {/* FAQ Section */}
       <section className={`py-20 px-6 ${bgClass}`}>
         <div className="max-w-4xl mx-auto">
           <h2 className={`text-4xl font-bold text-center mb-16 animate-fade-in ${isDarkMode ? "text-white" : "text-gray-900"}`}>
@@ -316,19 +331,6 @@ const Pricing: React.FC = () => {
                   {faq.question}
                 </h3>
                 <p className={isDarkMode ? "text-gray-300 leading-relaxed" : "text-gray-700 leading-relaxed"}>{faq.answer}</p>
-
-          {/* Payment CTA for gated admins */}
-          {allowed && !userPaid && (
-            <div className="mt-8 flex items-center justify-center">
-              <button
-                type="button"
-                onClick={handleCompletePayment}
-                className="rounded-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow hover:opacity-90 transition"
-              >
-                Proceed to Payment and Activate Admin
-              </button>
-            </div>
-          )}
               </div>
             ))}
           </div>
