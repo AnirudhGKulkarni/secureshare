@@ -26,6 +26,8 @@ const Auth: React.FC = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [domain, setDomain] = useState<string>("");
   const [customCategory, setCustomCategory] = useState("");
   const [role, setRole] = useState<"admin" | "client">("client");
@@ -115,6 +117,26 @@ const Auth: React.FC = () => {
     const t = setInterval(() => setCurrent((c) => (c + 1) % carouselItems.length), 4000);
     return () => clearInterval(t);
   }, []);
+
+  // Real-time username availability check with debounce
+  useEffect(() => {
+    const uname = username.trim().toLowerCase();
+    if (!uname) {
+      setUsernameStatus("idle");
+      return;
+    }
+    setUsernameStatus("checking");
+    const timer = setTimeout(async () => {
+      try {
+        const snap = await getDoc(doc(firestore, "usernames", uname));
+        setUsernameStatus(snap.exists() ? "taken" : "available");
+      } catch (err) {
+        console.warn("Username check failed:", err);
+        setUsernameStatus("idle");
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [username]);
 
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -321,8 +343,18 @@ const Auth: React.FC = () => {
       toast.error("Password should be at least 6 characters");
       return;
     }
+    const uname = username.trim().toLowerCase();
+    if (!uname) {
+      toast.error("Please choose a username");
+      return;
+    }
+    if (usernameStatus === "taken") {
+      toast.error("Username already taken");
+      return;
+    }
     setIsLoading(true);
     try {
+
       const user = await signup({
         email: email.trim(),
         password,
@@ -333,6 +365,22 @@ const Auth: React.FC = () => {
         role,
       });
 
+      // Reserve the username and attach to user profile
+      try {
+        await setDoc(doc(firestore, "usernames", uname), {
+          uid: user.uid,
+          createdAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn("Could not reserve username:", err);
+      }
+
+      try {
+        await setDoc(doc(firestore, "users", user.uid), { username: uname }, { merge: true });
+      } catch (err) {
+        console.warn("Could not save username to user profile:", err);
+      }
+
       toast.success("Account created! Please sign in.");
       setMode("signin");
       setShowWelcomeBack(true);
@@ -340,6 +388,7 @@ const Auth: React.FC = () => {
       setEmail("");
       setPassword("");
       setConfirm("");
+      setUsername("");
     } catch (err: any) {
       toast.error(err?.message ?? "Sign up failed");
     } finally {
@@ -483,6 +532,33 @@ const Auth: React.FC = () => {
                         <Input className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Username field directly under Last name */}
+                  <div>
+                    <Label>Username</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="Choose a unique username"
+                        required
+                      />
+                    </div>
+                    {usernameStatus === "checking" && (
+                      <p className="mt-1 text-xs text-blue-400">Checking availability...</p>
+                    )}
+                    {usernameStatus === "available" && (
+                      <p className="mt-1 text-xs text-green-400">✓ Username is available</p>
+                    )}
+                    {usernameStatus === "taken" && (
+                      <p className="mt-1 text-xs text-red-400">✗ Username already taken</p>
+                    )}
+                    {usernameStatus === "idle" && (
+                      <p className="mt-1 text-xs text-muted-foreground">Your username will be used for admin verification.</p>
+                    )}
                   </div>
 
                   <div>

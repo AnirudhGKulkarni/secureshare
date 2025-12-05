@@ -117,6 +117,15 @@ const AdminSignup: React.FC = () => {
         </CardHeader>
 
         <CardContent>
+          {/* Prerequisite note with link to Login */}
+          <div className="mb-4 p-3 rounded-md border border-blue-800/50 bg-blue-950/30 text-sm">
+            <p className="text-blue-200">
+              <strong>Note:</strong> Before proceeding with the registration, you must have a registered username and password. Please create one via the signup page if you haven't already done so.
+              {" "}
+              <Link to="/login" className="underline text-primary hover:text-accent-foreground ml-1">Go to Login/Signup</Link>
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
