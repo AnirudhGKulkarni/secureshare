@@ -1,5 +1,5 @@
 // src/pages/adminSignup.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Shield, User, Briefcase, Mail, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
+import { doc as fdoc, getDoc as fgetDoc } from "firebase/firestore";
 
 const domainOptions = ["IT", "Logistics", "HR", "Finance", "Retail", "Healthcare", "Other"] as const;
 
 const AdminSignup: React.FC = () => {
+  const { currentUser, profile } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
@@ -23,6 +26,48 @@ const AdminSignup: React.FC = () => {
   const [googleDriveLink, setGoogleDriveLink] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+    // Autofill from signed-up user profile (except Drive link)
+    useEffect(() => {
+      const fillFromProfile = async () => {
+        try {
+          // Prefer context profile if available
+          const p = profile;
+          if (p) {
+            setFirstName(p.firstName ?? "");
+            setLastName(p.lastName ?? "");
+            setCompany(p.company ?? "");
+            if (p.domain && (domainOptions as readonly string[]).includes(p.domain)) {
+              setDomain(p.domain as typeof domainOptions[number]);
+            }
+            setCustomCategory(p.customCategory ?? "");
+            setUsername((p.username ?? "").toLowerCase());
+            setEmail(p.email ?? "");
+            return;
+          }
+          // Fallback: fetch users/{uid} if logged in
+          if (currentUser) {
+            const ref = fdoc(firestore, "users", currentUser.uid);
+            const snap = await fgetDoc(ref);
+            if (snap.exists()) {
+              const u: any = snap.data();
+              setFirstName(u.firstName ?? "");
+              setLastName(u.lastName ?? "");
+              setCompany(u.company ?? "");
+              if (u.domain && (domainOptions as readonly string[]).includes(u.domain)) {
+                setDomain(u.domain as typeof domainOptions[number]);
+              }
+              setCustomCategory(u.customCategory ?? "");
+              setUsername((u.username ?? "").toLowerCase());
+              setEmail(u.email ?? "");
+            }
+          }
+        } catch (e) {
+          console.warn("Autofill failed:", e);
+        }
+      };
+      fillFromProfile();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.uid]);
   
 
   const handleSubmit = async (e: React.FormEvent) => {
