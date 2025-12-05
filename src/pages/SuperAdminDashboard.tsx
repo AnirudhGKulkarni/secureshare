@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Users, Shield, AlertTriangle, Activity, CheckCircle, XCircle, Trash2, Plus } from 'lucide-react';
+import { Users, Shield, AlertTriangle, Activity, CheckCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
-import { toast } from 'sonner';
+// toast not needed after removing inline user management
 
 // Stats are now computed from Firestore in real-time below.
 
@@ -35,11 +32,7 @@ const SuperAdminDashboard = () => {
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<number>(0);
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'client' | 'super_admin'>('all');
-  const [adding, setAdding] = useState(false);
-  const [newUser, setNewUser] = useState<{ firstName: string; lastName: string; email: string; role: 'admin' | 'client' }>(
-    { firstName: '', lastName: '', email: '', role: 'client' }
-  );
+  // User management moved to All Users page; dashboard keeps overview only
 
   // Real-time users subscription
   useEffect(() => {
@@ -84,81 +77,9 @@ const SuperAdminDashboard = () => {
     return () => unsub();
   }, []);
 
-  const filteredUsers = useMemo(() => {
-    if (roleFilter === 'all') return users;
-    return users.filter(u => u.role === roleFilter);
-  }, [users, roleFilter]);
+  // No local filtering; user list is for stats only
 
-  const handleAddUser = async () => {
-    if (!newUser.email.trim()) {
-      toast.error('Email is required');
-      return;
-    }
-    setAdding(true);
-    try {
-      // Create a Firestore record (profile). Note: creating an Auth account requires a secure backend.
-      await addDoc(collection(firestore, 'users'), {
-        firstName: newUser.firstName.trim(),
-        lastName: newUser.lastName.trim(),
-        email: newUser.email.trim().toLowerCase(),
-        role: newUser.role,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      });
-
-      // Optional backend call to create Firebase Auth user
-      try {
-        const endpoint = import.meta.env.VITE_ADMIN_CREATE_USER_URL as string | undefined;
-        if (endpoint) {
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: newUser.email.trim().toLowerCase(),
-              displayName: `${newUser.firstName} ${newUser.lastName}`.trim(),
-              role: newUser.role,
-            }),
-          });
-          if (!res.ok) console.warn('Create user endpoint returned non-OK:', res.status);
-        }
-      } catch (e) {
-        console.warn('Auth create call failed (optional):', e);
-      }
-
-      setNewUser({ firstName: '', lastName: '', email: '', role: 'client' });
-      toast.success('User added');
-    } catch (e: any) {
-      console.error('Add user failed:', e);
-      toast.error(e?.message || 'Failed to add user');
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const handleDeleteUser = async (u: UserRecord) => {
-    if (!confirm(`Delete ${u.email}? This removes their profile.`)) return;
-    try {
-      await deleteDoc(doc(firestore, 'users', u.id));
-      // Optional backend call to delete Firebase Auth by email
-      try {
-        const endpoint = import.meta.env.VITE_ADMIN_DELETE_USER_URL as string | undefined;
-        if (endpoint && u.email) {
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: u.email }),
-          });
-          if (!res.ok) console.warn('Delete user endpoint returned non-OK:', res.status);
-        }
-      } catch (e) {
-        console.warn('Auth delete call failed (optional):', e);
-      }
-      toast.success('User deleted');
-    } catch (e: any) {
-      console.error('Delete user failed:', e);
-      toast.error(e?.message || 'Failed to delete user');
-    }
-  };
+  // Inline add/delete handlers removed
 
   return (
     <DashboardLayout>
@@ -200,78 +121,8 @@ const SuperAdminDashboard = () => {
           ))}
         </div>
 
-        {/* Users Management + Existing Content Layout */}
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Left: Real-time Users */}
-          <Card className="shadow-card md:col-span-1">
-            <CardHeader>
-              <CardTitle>All Users</CardTitle>
-              <div className="flex items-center gap-2">
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value as any)}
-                  className="rounded-md border px-2 py-1 text-sm bg-background"
-                >
-                  <option value="all">All</option>
-                  <option value="admin">Admins</option>
-                  <option value="client">Clients</option>
-                  <option value="super_admin">Super Admins</option>
-                </select>
-                <span className="text-xs text-muted-foreground">{filteredUsers.length} shown</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 max-h-[420px] overflow-auto pr-1">
-                {filteredUsers.map((u) => (
-                  <div key={u.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : (u.email || 'Unnamed')}</p>
-                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                      <p className="text-xs"><span className="uppercase px-2 py-0.5 rounded bg-secondary">{u.role}</span> <span className="ml-2 text-muted-foreground">{u.status}</span></p>
-                    </div>
-                    <Button variant="destructive" size="icon" onClick={() => handleDeleteUser(u)} aria-label="Delete user">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                {filteredUsers.length === 0 && (
-                  <div className="text-sm text-muted-foreground">No users found for this filter.</div>
-                )}
-              </div>
-
-              {/* Add user */}
-              <div className="mt-6 border-t pt-4">
-                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2"><Plus className="w-4 h-4"/> Add User (Firestore)</h4>
-                <div className="grid grid-cols-1 gap-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="First name" value={newUser.firstName} onChange={(e) => setNewUser(s => ({...s, firstName: e.target.value}))} />
-                    <Input placeholder="Last name" value={newUser.lastName} onChange={(e) => setNewUser(s => ({...s, lastName: e.target.value}))} />
-                  </div>
-                  <Input type="email" placeholder="Email" value={newUser.email} onChange={(e) => setNewUser(s => ({...s, email: e.target.value}))} />
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs">Role</Label>
-                    <select
-                      value={newUser.role}
-                      onChange={(e) => setNewUser(s => ({...s, role: e.target.value as any}))}
-                      className="rounded-md border px-2 py-1 text-sm bg-background"
-                    >
-                      <option value="client">Client</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <Button onClick={handleAddUser} disabled={adding} className="w-full">
-                    {adding ? 'Adding…' : 'Add User'}
-                  </Button>
-                  <p className="text-[11px] text-muted-foreground">
-                    Note: Creating a Firebase Auth account requires a secure backend. If configured via <code>VITE_ADMIN_CREATE_USER_URL</code>, we will call it.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Right: existing dashboard content spans 2 columns */}
-          <div className="md:col-span-2 space-y-6">
+        {/* Dashboard content only; user management moved to All Users page */}
+        <div className="space-y-6">
 
             <Card className="shadow-card">
               <CardHeader>
@@ -404,7 +255,6 @@ const SuperAdminDashboard = () => {
               </CardContent>
             </Card>
           </div>
-        </div>
 
         {/* end users+content grid */}
       </div>

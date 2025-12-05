@@ -17,6 +17,7 @@ import AdminSignup from "./pages/adminSignup";
 import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
+import SuperUsers from "./pages/superusers";
 import Policies from "./pages/Policies";
 import Share from "./pages/Share";
 import Audit from "./pages/Audit";
@@ -285,6 +286,14 @@ const App = () => (
               element={
                 <RoleProtectedRoute requiredRole="super_admin">
                   <EnhancedAuditLogs />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/super-admin/users"
+              element={
+                <RoleProtectedRoute requiredRole="super_admin">
+                  <SuperUsers />
                 </RoleProtectedRoute>
               }
             />

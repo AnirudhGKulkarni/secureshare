@@ -11,7 +11,7 @@ export const DashboardFooter = () => {
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <Shield className="w-5 h-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-foreground">TrustNshare</span>
+              <span className="text-lg font-bold text-foreground">trustNshare</span>
             </div>
             <p className="text-sm leading-relaxed">
               Enterprise-grade file sharing with military-grade encryption and complete compliance.
@@ -90,7 +90,7 @@ export const DashboardFooter = () => {
               </div>
             </div>
             <p className="text-sm flex items-center gap-2">
-              <span className="text-primary">©</span> 2025 TrustNshare. All rights reserved.
+              <span className="text-primary">©</span> 2025 trustNshare. All rights reserved.
             </p>
           </div>
         </div>

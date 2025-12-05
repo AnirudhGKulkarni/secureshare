@@ -12,7 +12,7 @@ const navigation = [
   { name: 'Dashboard', href: '/super-admin', icon: LayoutDashboard },
   { name: 'Admin Approvals', href: '/super-admin/approvals', icon: CheckSquare },
   { name: 'Audit Logs', href: '/super-admin/audit', icon: FileText },
-  { name: 'All Users', href: '/users', icon: Users },
+  { name: 'All Users', href: '/super-admin/users', icon: Users },
 ];
 
 export const SuperAdminSidebar = () => {
@@ -22,7 +22,7 @@ export const SuperAdminSidebar = () => {
         <Shield className="h-6 w-6 text-purple-600 mr-2" />
         <div className="flex flex-col">
           <span className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
-            TrustNshare
+            trustNshare
           </span>
           <span className="text-xs text-purple-600 font-medium">Super Admin</span>
         </div>
@@ -33,6 +33,9 @@ export const SuperAdminSidebar = () => {
           <NavLink
             key={item.name}
             to={item.href}
+            // Ensure only the exact route is highlighted. Without `end`,
+            // "/super-admin" stays active for subpaths like "/super-admin/approvals".
+            end={item.href === '/super-admin'}
             className={({ isActive }) =>
               cn(
                 'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
