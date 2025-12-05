@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { getIdTokenResult } from "firebase/auth";
@@ -114,6 +114,15 @@ const HomeRedirect: React.FC = () => {
 // ------------------------
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  React.useEffect(() => {
+    if (loading) return;
+    if (!currentUser && location.pathname !== "/login") {
+      navigate("/login", { replace: true });
+    }
+  }, [loading, currentUser, location.pathname, navigate]);
 
   if (loading) {
     return (
@@ -123,7 +132,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  return currentUser ? <>{children}</> : <Navigate to="/login" replace />;
+  if (!currentUser && location.pathname !== "/login") {
+    return null;
+  }
+
+  return <>{children}</>;
 };
 
 // ------------------------

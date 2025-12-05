@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 interface FrontNavbarProps {
   isDarkMode?: boolean;
@@ -184,6 +186,23 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                   Dashboard
                 </Link>
               )}
+              {/* Show Logout only when logged in */}
+              {currentUser && profile && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await signOut(auth);
+                      // After logout, optionally refresh to clear protected UI
+                      window.location.href = "/";
+                    } catch (e) {
+                      console.error("Logout failed", e);
+                    }
+                  }}
+                  className="rounded-lg px-4 py-2 text-sm font-medium border border-red-500 text-red-600 hover:bg-red-50 transition-all duration-300"
+                >
+                  Logout
+                </button>
+              )}
               {(!currentUser || !profile) && (
                 <>
                   <Link
@@ -309,6 +328,22 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                 >
                   Dashboard
                 </Link>
+              )}
+              {currentUser && profile && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await signOut(auth);
+                      setMobileMenuOpen(false);
+                      window.location.href = "/";
+                    } catch (e) {
+                      console.error("Logout failed", e);
+                    }
+                  }}
+                  className="text-center rounded-lg px-4 py-2 text-sm font-medium border border-red-500 text-red-600 hover:bg-red-50 transition-all duration-300"
+                >
+                  Logout
+                </button>
               )}
               {(!currentUser || !profile) && (
                 <>
