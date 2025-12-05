@@ -39,6 +39,7 @@ const AdminApproval = () => {
   const [selectedRequest, setSelectedRequest] = useState<AdminRequest | null>(null);
   const [viewingDocument, setViewingDocument] = useState<DocumentMeta | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [latestInviteLink, setLatestInviteLink] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRequests();
@@ -85,6 +86,35 @@ const AdminApproval = () => {
       setLoading(false);
     }
   };
+
+  // Fetch latest invite link for the selected request when opened
+  useEffect(() => {
+    const fetchLatestInvite = async () => {
+      if (!selectedRequest) {
+        setLatestInviteLink(null);
+        return;
+      }
+      try {
+        const invitesQ = query(
+          collection(firestore, 'pricing_invites'),
+          where('requestId', '==', selectedRequest.id),
+          where('revoked', '==', false)
+        );
+        const snap = await getDocs(invitesQ);
+        if (!snap.empty) {
+          const inviteDoc = snap.docs[0];
+          const inviteLink = `${window.location.origin}/pricing?invite=${inviteDoc.id}`;
+          setLatestInviteLink(inviteLink);
+        } else {
+          setLatestInviteLink(null);
+        }
+      } catch (e) {
+        console.warn('Fetch latest invite error:', e);
+        setLatestInviteLink(null);
+      }
+    };
+    fetchLatestInvite();
+  }, [selectedRequest]);
 
   // Create a secure Pricing invite token for this admin
   const createPricingInvite = async (request: AdminRequest) => {
@@ -159,8 +189,6 @@ const AdminApproval = () => {
       // Create invite for secure Pricing page and send via email
       const invite = await createPricingInvite(request);
 
-      toast.success(`Admin approved and invite created!`);
-      
       // Send email via configured serverless endpoint if available
       const emailEndpoint = import.meta.env.VITE_EMAIL_FUNCTION_URL as string | undefined;
       if (emailEndpoint) {
@@ -367,11 +395,7 @@ const AdminApproval = () => {
                           <span className="font-medium">Category:</span> {request.customCategory}
                         </div>
                       )}
-                      {request.documents && (
-                        <div>
-                          <span className="font-medium">Documents:</span> {request.documents.length} file(s)
-                        </div>
-                      )}
+                      {/* Documents count removed as requested */}
                       {request.googleDriveLink && (
                         <div className="col-span-2">
                           <span className="font-medium">Drive Link:</span>{' '}
@@ -485,52 +509,22 @@ const AdminApproval = () => {
                   </div>
                 </div>
 
-                <div>
-                  <h4 className="text-sm font-medium mb-3">Uploaded Documents ({selectedRequest.documents?.length || 0})</h4>
-                  <div className="space-y-2">
-                    {(selectedRequest.documents ?? []).map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-secondary/50">
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-primary" />
-                          <div>
-                            <p className="text-sm font-medium">{doc.fileName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {doc.fileType} • {formatFileSize(doc.fileSize)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setViewingDocument(doc)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => downloadDocument(doc)}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                {latestInviteLink ? (
+                  <div>
+                    <h4 className="text-sm font-medium mb-3">Invite Sent</h4>
+                    <p className="text-sm">
+                      A pricing invite has been sent to this admin.{' '}
+                      <a
+                        href={latestInviteLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline"
+                      >
+                        Open invite
+                      </a>
+                    </p>
                   </div>
-                  {!selectedRequest.documents?.length && selectedRequest.googleDriveLink && (
-                    <div className="mt-2 p-3 border rounded-lg bg-secondary/30">
-                      <p className="text-sm">
-                        Documents were submitted via Google Drive link:{' '}
-                        <a href={selectedRequest.googleDriveLink} target="_blank" rel="noopener noreferrer" className="text-primary underline">
-                          Open verification documents
-                        </a>
-                      </p>
-                    </div>
-                  )}
-                </div>
+                ) : null}
 
                 {selectedRequest.status === 'pending' && (
                   <div className="flex gap-3 pt-4 border-t">
@@ -548,7 +542,7 @@ const AdminApproval = () => {
                       disabled={processing}
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      Resend Invite
+                      Send Invite
                     </Button>
                     <Button
                       variant="destructive"
