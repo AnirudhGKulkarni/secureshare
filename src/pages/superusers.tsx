@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users as UsersIcon, UserPlus, Trash2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
@@ -24,6 +24,7 @@ type UserRecord = {
   role?: Role;
   status?: 'pending' | 'active' | 'rejected' | 'inactive';
   createdAt?: any;
+  tempPassword?: string;
 };
 
 const roleFilters = [
@@ -36,12 +37,14 @@ const roleFilters = [
 const SuperUsers = () => {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [roleFilter, setRoleFilter] = useState<'all' | Role>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [adding, setAdding] = useState(false);
   const [newUser, setNewUser] = useState<{ firstName: string; lastName: string; email: string; role: Role }>(
     { firstName: '', lastName: '', email: '', role: 'client' }
   );
   const [newUserPassword, setNewUserPassword] = useState<string>('');
   const [viewUser, setViewUser] = useState<UserRecord | null>(null);
+  const [editUser, setEditUser] = useState<{ firstName: string; lastName: string; email: string; role: Role; status: 'pending' | 'active' | 'rejected' | 'inactive'; tempPassword?: string } | null>(null);
 
   useEffect(() => {
     const ref = collection(firestore, 'users');
@@ -57,6 +60,7 @@ const SuperUsers = () => {
           role: data?.role ?? 'client',
           status: data?.status ?? 'active',
           createdAt: data?.createdAt ?? null,
+          tempPassword: data?.tempPassword ?? '',
         });
       });
       // sort newest first when possible
@@ -71,9 +75,17 @@ const SuperUsers = () => {
   }, []);
 
   const filtered = useMemo(() => {
-    if (roleFilter === 'all') return users;
-    return users.filter((u) => u.role === roleFilter);
-  }, [users, roleFilter]);
+    let list = roleFilter === 'all' ? users : users.filter((u) => u.role === roleFilter);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter((u) => {
+        const name = `${u.firstName || ''} ${u.lastName || ''}`.trim().toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        return name.includes(q) || email.includes(q);
+      });
+    }
+    return list;
+  }, [users, roleFilter, searchQuery]);
 
   const getRoleBadgeVariant = (role?: Role) => {
     switch (role) {
@@ -88,12 +100,34 @@ const SuperUsers = () => {
     }
   };
 
+  // Slightly brighter styling for client badges
+  const getRoleBadgeClass = (role?: Role) => {
+    if (role === 'client') {
+      return 'bg-blue-100 text-blue-700';
+    }
+    return '';
+  };
+
   const formatDate = (ts: any) => {
     if (!ts) return 'N/A';
     const ms = ts?.seconds ? ts.seconds * 1000 : Date.parse(ts) || undefined;
     if (!ms) return 'N/A';
     return new Date(ms).toLocaleString();
   };
+
+  const openView = (u: UserRecord) => {
+    setViewUser(u);
+    setEditUser({
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+      email: (u as any).email || '',
+      role: (u.role as Role) || 'client',
+      status: (u.status as any) || 'active',
+      tempPassword: (u as any).tempPassword || '',
+    });
+  };
+
+  // Edits are disabled: no save handler
 
   const handleAddUser = async () => {
     if (!newUser.email.trim()) {
@@ -264,6 +298,14 @@ const SuperUsers = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="relative">
+                  <Input
+                    className="w-[220px]"
+                    placeholder="Search name or email"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
                 <span className="text-xs text-muted-foreground">{filtered.length} shown</span>
               </div>
             </div>
@@ -275,10 +317,10 @@ const SuperUsers = () => {
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : (u.email || 'Unnamed')}</p>
                     <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                    <p className="text-xs"><Badge variant={getRoleBadgeVariant(u.role)}>{u.role}</Badge> <span className="ml-2 text-muted-foreground">{u.status}</span></p>
+                    <p className="text-xs"><Badge variant={getRoleBadgeVariant(u.role)} className={getRoleBadgeClass(u.role)}>{u.role}</Badge> <span className="ml-2 text-muted-foreground">{u.status}</span></p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setViewUser(u)}>View</Button>
+                    <Button variant="outline" size="sm" onClick={() => openView(u)}>View</Button>
                     <Button variant="destructive" size="icon" onClick={() => handleDeleteUser(u)} aria-label="Delete user">
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -292,38 +334,45 @@ const SuperUsers = () => {
           </CardContent>
         </Card>
         {/* View User Dialog */}
-        <Dialog open={!!viewUser} onOpenChange={(o) => !o && setViewUser(null)}>
+        <Dialog open={!!viewUser} onOpenChange={(o) => { if (!o) { setViewUser(null); setEditUser(null); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>User Details</DialogTitle>
-              <DialogDescription>Full profile information</DialogDescription>
+              <DialogDescription>View user profile and password</DialogDescription>
             </DialogHeader>
-            {viewUser && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">First Name</Label>
-                  <p className="text-sm">{viewUser.firstName || '-'}</p>
+            {viewUser && editUser && (
+              <div className="space-y-4">
+                {/* Read-only mode presented as text, not inputs */}
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-xs text-muted-foreground">First Name</div>
+                    <div className="text-sm font-medium">{editUser.firstName || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Last Name</div>
+                    <div className="text-sm font-medium">{editUser.lastName || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Email</div>
+                    <div className="text-sm">{editUser.email || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Role</div>
+                    <div className="text-sm"><Badge variant={getRoleBadgeVariant(editUser.role)} className={getRoleBadgeClass(editUser.role)}>{editUser.role}</Badge></div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Status</div>
+                    <div className="text-sm">{editUser.status}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Password (stored in Firestore as tempPassword)</div>
+                    <div className="text-sm break-all">{editUser.tempPassword || '-'}</div>
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-xs">Last Name</Label>
-                  <p className="text-sm">{viewUser.lastName || '-'}</p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setViewUser(null); setEditUser(null); }}>Close</Button>
                 </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">Email</Label>
-                  <p className="text-sm">{viewUser.email || '-'}</p>
-                </div>
-                <div>
-                  <Label className="text-xs">Role</Label>
-                  <p className="text-sm capitalize">{viewUser.role}</p>
-                </div>
-                <div>
-                  <Label className="text-xs">Status</Label>
-                  <p className="text-sm">{viewUser.status}</p>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">Created At</Label>
-                  <p className="text-sm">{formatDate(viewUser.createdAt)}</p>
-                </div>
+                <div className="text-xs text-muted-foreground">Created At: {formatDate(viewUser.createdAt)}</div>
               </div>
             )}
           </DialogContent>

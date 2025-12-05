@@ -45,6 +45,7 @@ const roleOptions = [
 
 const Users = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -257,6 +258,14 @@ const Users = () => {
     return <DashboardLayout><div>Loading...</div></DashboardLayout>;
   }
 
+  const filteredUsers = users.filter((user) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const name = `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    return name.includes(q) || email.includes(q);
+  });
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -432,7 +441,18 @@ const Users = () => {
 
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle>Active Clients and Co Admins</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Active Clients and Co Admins</CardTitle>
+              <div className="flex items-center gap-2">
+                <Input
+                  className="w-[240px]"
+                  placeholder="Search name or email"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <span className="text-xs text-muted-foreground">{filteredUsers.length} shown</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -446,7 +466,7 @@ const Users = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <tr key={user.uid} className="border-b border-border hover:bg-secondary/50 transition-colors">
                       <td className="px-4 py-4 text-sm font-medium">{user.firstName} {user.lastName}</td>
                       <td className="px-4 py-4 text-sm text-muted-foreground">{user.email}</td>

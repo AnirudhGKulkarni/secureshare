@@ -24,7 +24,6 @@ export const DashboardFooter = () => {
             <div className="space-y-2">
               <div className="text-sm">superadmin@trustnshare.com</div>
               <div className="text-sm">+91 1234567890</div>
-              <div className="text-sm">24/7 Technical Support</div>
             </div>
           </div>
 
