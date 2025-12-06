@@ -26,7 +26,7 @@ export const DashboardFooter = () => {
           <div>
             <h3 className="text-foreground font-semibold mb-4">Contact & Support</h3>
             <div className="space-y-2">
-              <div className="text-sm">superadmin@trustnshare.com</div>
+              <div className="text-sm">trustnshare1@gmail.com</div>
               <div className="text-sm">+91 1234567890</div>
             </div>
           </div>

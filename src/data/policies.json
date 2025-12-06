@@ -1,0 +1,107 @@
+[
+  {
+    "policyName": "Customer PII Protection",
+    "policyDescription": "Protects and minimizes exposure of personally identifiable information when accessed or shared; enforces masking, logging and role-based access.",
+    "policyCategory": "Privacy / PII",
+    "protectedFields": [
+      { "field": "SSN", "reason": "Uniquely identifies individuals; high re-identification and fraud risk; subject to strict regulatory controls." },
+      { "field": "Credit Card Number", "reason": "Payment credential; high fraud and financial risk; PCI scope when stored or processed." },
+      { "field": "Phone Number", "reason": "Direct contact identifier that enables re-identification and social engineering; limited exposure reduces risk." }
+    ],
+    "allowedActions": {
+      "view": { "allowed": true, "notes": "Only for authorized roles (Data Steward, Admin) with MFA and business need-to-know; full view logged." },
+      "mask": { "allowed": true, "notes": "Masking or tokenization required before any sharing outside owner/team; default for UI exports." },
+      "share": { "allowed": true, "notes": "Only with masking, approved purpose, and DUA (Data Use Agreement); must be logged and time-limited." },
+      "download": { "allowed": false, "notes": "Downloads of raw PII prohibited except via documented exceptions (see Conditions/Exceptions)." },
+      "edit": { "allowed": true, "notes": "Only by Data Owners and authorized admins via audited workflows and change-control." },
+      "delete": { "allowed": true, "notes": "Allowed under retention/erasure requests following verification and documented approval steps." }
+    },
+    "conditionsExceptions": [
+      { "condition": "Role-based", "details": "Full view allowed only for Data Stewards, Privacy Officers, and Admins with MFA and explicit business justification." },
+      { "condition": "Data Sensitivity", "details": "If data contains SSN or payment data, automatic masking/tokenization applied for all non-owner roles." },
+      { "condition": "Legal / Emergency", "details": "Legal or Incident Response may request unmasked access via documented approval (ticket + manager sign-off); access scoped and time-limited." },
+      { "condition": "Analytics", "details": "Analytics may receive de-identified/aggregated datasets only; project owner must attest to sufficient de-identification." }
+    ],
+    "enforcementActions": [
+      "Enforce RBAC and attribute-based access controls (ABAC) at API and UI layers.",
+      "Apply automated masking/tokenization pipelines before data export or sharing.",
+      "Record and retain access logs: who, when, purpose, and dataset snapshot.",
+      "Quarterly audits of access; anomalous access triggers investigation and temporary revocation.",
+      "Violations: immediate access revocation, incident investigation, and disciplinary action per company policy."
+    ],
+    "complianceNotes": [
+      "Handle SSN/Credit Card data in accordance with GDPR/CCPA/PCI-DSS/other applicable laws.",
+      "Encrypt data at rest and in transit; use tokenization for payment data where possible.",
+      "Retention and deletion follow the Data Retention Schedule; honor verified erasure requests."
+    ],
+    "status": "Active"
+  },
+  {
+    "policyName": "Financial Data Policy",
+    "policyDescription": "Controls access and sharing of financial records to preserve confidentiality, integrity, and auditability of account and transaction data.",
+    "policyCategory": "Financial / Confidential",
+    "protectedFields": [
+      { "field": "Account Balance", "reason": "Direct financial metric that could be misused for fraud or insider trading; sensitive commercial information." },
+      { "field": "Transaction History", "reason": "Contains chronological financial activity tied to accounts; can reveal sensitive business/individual behavior." }
+    ],
+    "allowedActions": {
+      "view": { "allowed": true, "notes": "Allowed for Finance, Account Owners, and authorized Auditors with MFA and least-privilege; actions logged." },
+      "mask": { "allowed": true, "notes": "Mask or aggregate values for downstream consumers; dollar amounts may be rounded/obfuscated unless justified." },
+      "share": { "allowed": true, "notes": "Only to authorized internal teams or external parties under DUA and with redaction/masking as required." },
+      "download": { "allowed": false, "notes": "Raw downloads restricted; allowed under approved data export workflows with cryptographic protections and approval." },
+      "edit": { "allowed": true, "notes": "Edits permitted only via controlled financial systems and change-control processes; all changes auditable." },
+      "delete": { "allowed": false, "notes": "Deletion allowed only per retention schedule and with multi-party approval (Finance + Legal)." }
+    },
+    "conditionsExceptions": [
+      { "condition": "Role-based", "details": "Full access for Finance, Account Owners, and Audit roles; temporary elevated access requires approval and is time-limited." },
+      { "condition": "Data Sensitivity", "details": "High-sensitivity transactions (e.g., payment disputes) require redaction for non-authorized roles." },
+      { "condition": "Analytics", "details": "Analytics receive anonymized or aggregated data; raw transaction-level exports require Data Owner signoff and DUA." }
+    ],
+    "enforcementActions": [
+      "RBAC enforcement integrated with IAM and SSO; periodic entitlement reviews.",
+      "Automated alerts for anomalous exports or large-scale data access.",
+      "Mandatory logging and immutable audit trails for financial data access and edits.",
+      "Access violations trigger immediate suspension, forensic review, and potential regulatory notification."
+    ],
+    "complianceNotes": [
+      "Comply with SOX, GLBA, PCI-DSS (if payments present), and other applicable financial regulations.",
+      "Maintain segregation of duties for financial transactions and change approvals.",
+      "Retain financial records per legal and regulatory retention schedules."
+    ],
+    "status": "Active"
+  },
+  {
+    "policyName": "Vendor Access Control",
+    "policyDescription": "Restricts third-party vendor access to only operational data necessary for contracted services, enforces strict isolation and monitoring.",
+    "policyCategory": "Third-Party / Access Control",
+    "protectedFields": [
+      { "field": "Order Details", "reason": "May contain customer data and business-sensitive information; exposure can reveal operations and customer behavior." },
+      { "field": "Inventory", "reason": "Commercially sensitive; unauthorized disclosure can harm negotiations and competitive position." }
+    ],
+    "allowedActions": {
+      "view": { "allowed": true, "notes": "Limited to specific operational datasets required for vendor tasks; principle of least privilege applies." },
+      "mask": { "allowed": true, "notes": "PII within order details must be masked before vendor access unless contractually required and approved." },
+      "share": { "allowed": false, "notes": "External sharing by vendor prohibited unless explicitly allowed by contract and approved by Data Owner." },
+      "download": { "allowed": false, "notes": "Bulk downloads prohibited; limited exports require approval and are delivered via secure channels." },
+      "edit": { "allowed": false, "notes": "Editing restricted; where edits are needed, use scoped APIs or supervised interfaces with auditing." },
+      "delete": { "allowed": false, "notes": "Deletion by vendors is prohibited; data lifecycle actions must be performed by internal Data Owners." }
+    },
+    "conditionsExceptions": [
+      { "condition": "Contractual", "details": "Vendor access conditioned on signed DPA/DUA, minimum-security requirements, and background checks as applicable." },
+      { "condition": "Time-bound", "details": "Access is time-limited and reviewed monthly; emergency access requires manager + security approval and is audited." },
+      { "condition": "Monitoring", "details": "All vendor activity subject to session recording, monitoring, and periodic access reviews." }
+    ],
+    "enforcementActions": [
+      "Provision vendor accounts on isolated tenants with separate credentials and MFA.",
+      "Session monitoring and logging for all vendor interactions; periodic third-party audits.",
+      "Immediate revocation of access on contract termination or on detection of policy violations.",
+      "Contractual remedies and potential financial penalties for breaches per vendor agreement."
+    ],
+    "complianceNotes": [
+      "Require Data Processing Agreements (DPA) and security attestations from all vendors accessing sensitive data.",
+      "Align vendor controls with SOC 2 and internal third-party risk management requirements.",
+      "Perform annual risk assessments and continuous monitoring of vendor access."
+    ],
+    "status": "Inactive"
+  }
+]

@@ -365,7 +365,7 @@ const Pricing: React.FC = () => {
           <div className="flex flex-col gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-white font-semibold">Contact support</div>
-              <div className="text-gray-400">superadmin@trustnshare.com</div>
+              <div className="text-gray-400">trustnshare1@gmail.com</div>
               <div className="text-gray-400">91+1234567890</div>
             </div>
             {/* Removed duplicate middle Send Feedback button */}

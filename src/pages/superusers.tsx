@@ -365,7 +365,7 @@ const SuperUsers = () => {
                     <div className="text-sm">{editUser.status}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">Password (stored in Firestore as tempPassword)</div>
+                    <div className="text-xs text-muted-foreground">Password</div>
                     <div className="text-sm break-all">{editUser.tempPassword || '-'}</div>
                   </div>
                 </div>
