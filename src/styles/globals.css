@@ -398,6 +398,11 @@ body {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+/* hide scrollbars for WebKit browsers */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }

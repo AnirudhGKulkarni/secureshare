@@ -1,5 +1,5 @@
 // src/pages/ClientDashboard.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { firestore } from "@/lib/firebase";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { LogOut, Settings, User, Activity, FileText, Shield, MessageSquare, Clock, Bell, Lock, ArrowUp, Upload } from "lucide-react";
+import { LogOut, Settings, User, Activity, FileText, Shield, MessageSquare, Clock, Bell, Lock, ArrowUp, Upload, ChevronRight } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 
 type SensitivityBucket = "public" | "internal" | "confidential";
@@ -161,6 +161,29 @@ const ClientDashboard: React.FC = () => {
   const [fileSensitivityData, setFileSensitivityData] = useState<FileSensitivityChartDatum[]>(() => buildEmptySensitivityData());
   const [loginActivityData, setLoginActivityData] = useState<LoginActivityDatum[]>(() => buildLastSevenDayBuckets());
   const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
+  const activityRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  useEffect(() => {
+    const el = activityRef.current;
+    if (!el) {
+      setCanScrollRight(false);
+      return;
+    }
+
+    const update = () => {
+      setCanScrollRight(el.scrollWidth > el.clientWidth && el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    };
+
+    update();
+    window.addEventListener('resize', update);
+    el.addEventListener('scroll', update);
+
+    return () => {
+      window.removeEventListener('resize', update);
+      el.removeEventListener('scroll', update);
+    };
+  }, [recentActivity]);
 
   useEffect(() => {
     setLocalProfile(profile ?? {});
@@ -495,37 +518,62 @@ const ClientDashboard: React.FC = () => {
               </CardHeader>
 
               <CardContent className="space-y-6">
-                {/* Recent Activity */}
+                {/* Recent Activity (mini cards with horizontal scroll) */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Activity className="h-4 w-4 text-primary" />
                     <h3 className="font-semibold">Recent Activity</h3>
                   </div>
-                  <div className="space-y-2">
-                    {recentActivity.length > 0 ? (
-                      recentActivity.map((activity) => {
-                        const Icon = getActivityIcon(activity.action);
-                        return (
-                          <div key={activity.id} className="flex items-center justify-between p-3 rounded-md border bg-secondary/20">
-                            <div className="flex items-center gap-3">
-                              <Icon className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <div className="text-sm font-medium">
-                                  {activity.action}
+
+                  <div className="relative">
+                    <div
+                      ref={activityRef as any}
+                      className="flex gap-3 overflow-x-auto py-2 px-1"
+                      style={{ scrollSnapType: 'x mandatory' }}
+                    >
+                      {recentActivity.length > 0 ? (
+                        recentActivity.map((activity) => {
+                          const Icon = getActivityIcon(activity.action);
+                          return (
+                            <div
+                              key={activity.id}
+                              className="inline-flex flex-col w-64 min-w-[16rem] p-3 rounded-md border bg-secondary/20"
+                              style={{ scrollSnapAlign: 'start' }}
+                            >
+                              <div className="flex items-start gap-3">
+                                <Icon className="h-5 w-5 text-muted-foreground mt-1" />
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium">
+                                    {activity.action}
+                                  </div>
                                   {activity.resource && (
-                                    <span className="text-muted-foreground font-normal"> - {activity.resource}</span>
+                                    <div className="text-xs text-muted-foreground">{activity.resource}</div>
                                   )}
                                 </div>
-                                <div className="text-xs text-muted-foreground">{getRelativeTime(activity.timestamp)}</div>
                               </div>
+                              <div className="mt-3 text-xs text-muted-foreground">{getRelativeTime(activity.timestamp)}</div>
                             </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-sm text-muted-foreground p-3 rounded-md border">
-                        No recent activity
-                      </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-sm text-muted-foreground p-3 rounded-md border">No recent activity</div>
+                      )}
+                    </div>
+
+                    {/* Right-side scroll button */}
+                    {canScrollRight && (
+                      <button
+                        aria-label="Scroll recent activity right"
+                        onClick={() => {
+                          const el = activityRef.current;
+                          if (!el) return;
+                          const amount = Math.floor(el.clientWidth * 0.8) || 300;
+                          el.scrollBy({ left: amount, behavior: 'smooth' });
+                        }}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 bg-white border rounded-full p-1 shadow hover:bg-gray-50"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
                     )}
                   </div>
                 </div>
