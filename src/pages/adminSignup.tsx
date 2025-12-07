@@ -276,6 +276,7 @@ const AdminSignup: React.FC = () => {
                   <br />1. Upload your verification documents to Google Drive
                   <br />2. Set sharing permissions to "Anyone with the link can view"
                   <br />3. Copy and paste the sharing link in the above text box
+                  <br />4. The Super admin will review your documents and get back to you
                 </p>
               </div>
             </div>

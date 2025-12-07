@@ -1,171 +1,190 @@
-import { useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Send, Search, Phone, Video, MoreVertical } from 'lucide-react';
+import { MessageCircle, Search, Phone, Video, MoreVertical, Send } from 'lucide-react';
+import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { firestore } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
-const chatContacts = [
-  { id: 1, name: 'Alice Johnson', avatar: 'AJ', status: 'online', lastMessage: 'Can you review the security policy?', time: '2m', unread: 2 },
-  { id: 2, name: 'Bob Smith', avatar: 'BS', status: 'away', lastMessage: 'File shared successfully', time: '15m', unread: 0 },
-  { id: 3, name: 'Carol Davis', avatar: 'CD', status: 'online', lastMessage: 'Thanks for the help!', time: '1h', unread: 1 },
-  { id: 4, name: 'David Wilson', avatar: 'DW', status: 'offline', lastMessage: 'Meeting postponed', time: '3h', unread: 0 },
-  { id: 5, name: 'Security Team', avatar: 'ST', status: 'online', lastMessage: 'New threat detected', time: '5m', unread: 5 },
-];
+/**
+ * WhatsApp-like Chat UI
+ * - Left column: contacts with sticky search and scroll
+ * - Right column: header, message area with date separators, sticky input bar
+ * - Real-time messages via Firestore, optimistic send, auto-scroll
+ */
 
-const messages = [
-  { id: 1, sender: 'Alice Johnson', content: 'Hi! Can you help me with the new security policy?', time: '10:30 AM', isMe: false },
-  { id: 2, sender: 'Me', content: 'Of course! Which section do you need help with?', time: '10:32 AM', isMe: true },
-  { id: 3, sender: 'Alice Johnson', content: 'The file sharing permissions section', time: '10:33 AM', isMe: false },
-  { id: 4, sender: 'Me', content: 'I can walk you through that. Let me share the documentation.', time: '10:35 AM', isMe: true },
-  { id: 5, sender: 'Alice Johnson', content: 'Perfect! That would be really helpful.', time: '10:36 AM', isMe: false },
-];
+const formatDate = (d?: any) => {
+  if (!d) return '';
+  const date = d.toDate ? d.toDate() : new Date(d);
+  return date.toLocaleDateString();
+};
 
 const Chat = () => {
-  const [selectedContact, setSelectedContact] = useState(chatContacts[0]);
-  const [newMessage, setNewMessage] = useState('');
+  const { currentUser } = useAuth();
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [search, setSearch] = useState('');
+  const [messages, setMessages] = useState<any[]>([]);
+  const [text, setText] = useState('');
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      // Add message logic here
-      setNewMessage('');
+  const listRef = useRef<HTMLDivElement | null>(null); // messages scroll container
+
+  // load contacts
+  useEffect(() => {
+    if (!currentUser) return;
+    const load = async () => {
+      try {
+        const q = query(collection(firestore, 'users'), where('role', 'in', ['client', 'admin']));
+        const snaps = await getDocs(q);
+        const loaded = snaps.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
+        setContacts(loaded);
+        if (!selected && loaded.length) setSelected(loaded[0]);
+      } catch (e) {
+        console.warn('load contacts', e);
+      }
+    };
+    load();
+  }, [currentUser]);
+
+  // messages listener for selected conversation
+  useEffect(() => {
+    if (!currentUser || !selected) {
+      setMessages([]);
+      return;
     }
+
+    const coll = collection(firestore, 'messages');
+    const q = query(coll, where('from', 'in', [currentUser.uid, selected.uid]), orderBy('timestamp', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const convo = docs.filter((m: any) => (m.from === currentUser.uid && m.to === selected.uid) || (m.from === selected.uid && m.to === currentUser.uid));
+      // annotate timestampText
+      const annotated = convo.map((m: any) => ({ ...m, timestampText: m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '' }));
+      setMessages(annotated);
+    }, (e) => console.warn('messages listen', e));
+
+    return () => unsub();
+  }, [currentUser, selected]);
+
+  // autoresize/scroll to bottom
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages, selected]);
+
+  const sendMessage = async () => {
+    if (!text.trim() || !currentUser || !selected) return;
+    const content = text.trim();
+    // optimistic
+    const temp = { id: `temp-${Date.now()}`, from: currentUser.uid, to: selected.uid, content, timestampText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), _temp: true };
+    setMessages((s) => [...s, temp]);
+    setText('');
+    try {
+      await addDoc(collection(firestore, 'messages'), { from: currentUser.uid, to: selected.uid, content, timestamp: serverTimestamp() });
+    } catch (e) {
+      console.warn('send error', e);
+    }
+  };
+
+  // helpers to render date separators
+  const renderMessages = () => {
+    const rows: any[] = [];
+    let lastDate = '';
+    for (const m of messages) {
+      const ts = m.timestamp ? (m.timestamp.toDate ? m.timestamp.toDate() : new Date(m.timestamp)) : new Date();
+      const date = ts.toDateString();
+      if (date !== lastDate) {
+        rows.push(<div key={`d-${date}`} className="flex justify-center"><span className="text-xs text-muted-foreground bg-gray-100 px-3 py-1 rounded-full">{date}</span></div>);
+        lastDate = date;
+      }
+      rows.push(
+        <div key={m.id} className={`flex ${m.from === currentUser?.uid ? 'justify-end' : 'justify-start'}`}>
+          <div className={`max-w-[70%] px-4 py-2 rounded-lg ${m.from === currentUser?.uid ? 'bg-green-500 text-white' : 'bg-white text-gray-900'} shadow-sm`}>
+            <div className="whitespace-pre-wrap">{m.content}</div>
+            <div className="text-xs mt-1 text-right opacity-70">{m.timestampText || ''}</div>
+          </div>
+        </div>
+      );
+    }
+    return rows;
   };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Team Chat</h2>
-          <p className="text-muted-foreground mt-1">
-            Collaborate securely with your team members
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
-          {/* Contacts List */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <MessageCircle className="h-5 w-5" />
-                Conversations
-              </CardTitle>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-10" placeholder="Search conversations..." />
+      <div className="h-[calc(100vh-80px)] bg-gray-50 p-6">
+        <div className="max-w-[1200px] mx-auto bg-transparent h-full shadow-none">
+          <div className="flex h-full border rounded-lg overflow-hidden bg-white">
+            {/* Left column - contacts */}
+            <div className="w-80 border-r flex flex-col">
+              <div className="px-4 py-3 border-b flex items-center gap-2">
+                <h3 className="text-lg font-semibold">Conversations</h3>
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="space-y-1">
-                {chatContacts.map((contact) => (
-                  <button
-                    key={contact.id}
-                    onClick={() => setSelectedContact(contact)}
-                    className={`w-full p-3 text-left hover:bg-secondary/50 transition-colors ${
-                      selectedContact.id === contact.id ? 'bg-secondary' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="relative">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src="" />
-                          <AvatarFallback className="text-xs">{contact.avatar}</AvatarFallback>
-                        </Avatar>
-                        <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
-                          contact.status === 'online' ? 'bg-green-500' : 
-                          contact.status === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
-                        }`}></div>
-                      </div>
+              <div className="p-3 sticky top-0 bg-white z-10">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" placeholder="Search or start new chat" />
+                </div>
+              </div>
+              <div className="flex-1 overflow-auto">
+                <div className="divide-y">
+                  {contacts.filter(c => (c.displayName || c.email || '').toLowerCase().includes(search.toLowerCase())).map((c) => (
+                    <button key={c.uid} onClick={() => setSelected(c)} className={`w-full text-left p-3 flex items-center gap-3 hover:bg-gray-50 ${selected?.uid === c.uid ? 'bg-gray-100' : ''}`}>
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="text-xs">{(c.displayName || c.email || '').slice(0,2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium truncate">{contact.name}</p>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">{contact.time}</span>
-                            {contact.unread > 0 && (
-                              <Badge variant="destructive" className="text-xs min-w-5 h-5 flex items-center justify-center p-0">
-                                {contact.unread}
-                              </Badge>
-                            )}
-                          </div>
+                          <div className="truncate font-medium">{c.displayName || c.email}</div>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate mt-1">{contact.lastMessage}</p>
+                        <div className="text-xs text-muted-foreground truncate">{c.title || ''}</div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Chat Area */}
-          <Card className="lg:col-span-2 flex flex-col">
-            {/* Chat Header */}
-            <CardHeader className="pb-3 border-b">
-              <div className="flex items-center justify-between">
+            {/* Right column - chat area */}
+            <div className="flex-1 flex flex-col">
+              <div className="px-4 py-3 border-b flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="text-xs">{selectedContact.avatar}</AvatarFallback>
+                    <AvatarFallback className="text-xs">{(selected?.displayName || selected?.email || '').slice(0,2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium">{selectedContact.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{selectedContact.status}</p>
+                    <div className="font-medium">{selected?.displayName || selected?.email || 'Select a chat'}</div>
+                    <div className="text-xs text-muted-foreground">{selected ? (selected.status || 'Active') : ''}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm">
-                    <Phone className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Video className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
+                  <Button variant="outline" size="sm"><Phone className="h-4 w-4" /></Button>
+                  <Button variant="outline" size="sm"><Video className="h-4 w-4" /></Button>
+                  <Button variant="outline" size="sm"><MoreVertical className="h-4 w-4" /></Button>
                 </div>
               </div>
-            </CardHeader>
 
-            {/* Messages */}
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    message.isMe 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-secondary text-secondary-foreground'
-                  }`}>
-                    <p className="text-sm">{message.content}</p>
-                    <p className={`text-xs mt-1 ${
-                      message.isMe 
-                        ? 'text-primary-foreground/70' 
-                        : 'text-muted-foreground'
-                    }`}>
-                      {message.time}
-                    </p>
-                  </div>
+              {/* messages */}
+              <div className="flex-1 bg-[linear-gradient(180deg,#f3f6f9,transparent)] p-4 overflow-hidden">
+                <div ref={listRef} className="h-full overflow-auto flex flex-col gap-3">
+                  {selected ? renderMessages() : (
+                    <div className="m-auto text-center text-muted-foreground">Select a conversation to start chatting</div>
+                  )}
                 </div>
-              ))}
-            </CardContent>
+              </div>
 
-            {/* Message Input */}
-            <div className="p-4 border-t">
-              <div className="flex items-center gap-2">
-                <Input
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  className="flex-1"
-                />
-                <Button onClick={handleSendMessage} size="sm">
-                  <Send className="h-4 w-4" />
-                </Button>
+              {/* input */}
+              <div className="px-4 py-3 border-t">
+                <div className="flex items-center gap-3">
+                  <button className="p-2 rounded-full bg-transparent"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-2.197 2.197a2.121 2.121 0 01-3 0l-1.06-1.06a2.121 2.121 0 010-3l2.197-2.197M15 12l6 6" /></svg></button>
+                  <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message" className="flex-1" onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }} />
+                  <Button onClick={sendMessage} size="sm"><Send className="h-4 w-4" /></Button>
+                </div>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     </DashboardLayout>

@@ -393,6 +393,33 @@ body {
   background: var(--accent-color);
 }
 
+/* Utility: hide native scrollbars but keep scrolling enabled */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* When a modal/dialog is open we hide body scrolling (removes page scrollbar) */
+.dialog-open {
+  overflow: hidden;
+}
+
+/* Dialog content container: clip overflow so focus rings don't escape */
+.dialog-content {
+  overflow: hidden;
+  border-radius: 12px; /* match modal radius */
+}
+
+/* Tighter focus ring for inputs inside dialog so it doesn't overflow visually */
+.dialog-content :is(input, textarea, select, .input-base):focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.14);
+  border-color: rgba(59,130,246,0.9);
+}
+
 /* ===================================
    UTILITY SPACING
    =================================== */

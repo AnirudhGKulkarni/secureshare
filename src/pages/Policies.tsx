@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { ShieldPlus, Pencil, Trash2, Shield, Download } from 'lucide-react';
+import { ShieldPlus, Pencil, Trash2, Shield, Download, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Load structured policies from a centralized JSON file.
@@ -87,7 +87,9 @@ const Policies = () => {
     policyName: '',
     policyDescription: '',
     policyCategory: '',
-    protectedFieldsText: '',
+    // structured protected fields: array of { field, reason }
+    protectedFields: [{ field: '', reason: '' }],
+    policyCategoryOther: '',
     status: 'Active' as StructuredPolicy['status'],
     allowed_view: true,
     allowed_mask: true,
@@ -140,14 +142,10 @@ const Policies = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const protectedFields = (formData as any).protectedFieldsText
-      .split('\n')
-      .map((l: string) => l.trim())
-      .filter(Boolean)
-      .map((l: string) => {
-        const parts = l.split('|');
-        return { field: parts[0].trim(), reason: parts[1] ? parts[1].trim() : '' };
-      });
+    // Build protectedFields from structured formData.protectedFields
+    const protectedFields = ((formData as any).protectedFields || [])
+      .map((pf: any) => ({ field: (pf.field || '').trim(), reason: (pf.reason || '').trim() }))
+      .filter((pf: any) => pf.field);
 
     const conditionsExceptions = (formData as any).conditionsText
       .split('\n')
@@ -167,12 +165,17 @@ const Policies = () => {
       delete: { allowed: Boolean((formData as any).allowed_delete), notes: (formData as any).actionNotes_delete },
     };
 
+    // Resolve final category (if 'Other' selected, use policyCategoryOther)
+    const finalCategory = (formData as any).policyCategory === 'Other'
+      ? ((formData as any).policyCategoryOther || 'Other')
+      : (formData as any).policyCategory || '';
+
     if (editingPolicy) {
       setPolicies(policies.map(p => p.id === editingPolicy.id ? {
         ...p,
         policyName: (formData as any).policyName,
         policyDescription: (formData as any).policyDescription,
-        policyCategory: (formData as any).policyCategory,
+        policyCategory: finalCategory,
         protectedFields,
         allowedActions,
         conditionsExceptions,
@@ -186,7 +189,7 @@ const Policies = () => {
         id: String(Date.now()),
         policyName: (formData as any).policyName,
         policyDescription: (formData as any).policyDescription,
-        policyCategory: (formData as any).policyCategory,
+        policyCategory: finalCategory,
         protectedFields,
         allowedActions,
         conditionsExceptions,
@@ -208,8 +211,14 @@ const Policies = () => {
     setFormData({
       policyName: policy.policyName,
       policyDescription: policy.policyDescription,
-      policyCategory: policy.policyCategory || '',
-      protectedFieldsText: policy.protectedFields.map(pf => `${pf.field}${pf.reason ? ' | ' + pf.reason : ''}`).join('\n'),
+      // If category is a known option keep it, otherwise treat as Other and put value in policyCategoryOther
+      policyCategory: [
+        'HR','Finance','IT','Operations','Legal','Sales','Marketing','Product','Security','Compliance','Engineering','Customer Support'
+      ].includes(policy.policyCategory || '') ? policy.policyCategory || '' : (policy.policyCategory ? 'Other' : ''),
+      policyCategoryOther: [
+        'HR','Finance','IT','Operations','Legal','Sales','Marketing','Product','Security','Compliance','Engineering','Customer Support'
+      ].includes(policy.policyCategory || '') ? '' : (policy.policyCategory || ''),
+      protectedFields: policy.protectedFields.length ? policy.protectedFields.map(pf => ({ field: pf.field, reason: pf.reason || '' })) : [{ field: '', reason: '' }],
       status: policy.status,
       allowed_view: policy.allowedActions.view.allowed,
       allowed_mask: policy.allowedActions.mask.allowed,
@@ -285,7 +294,7 @@ const Policies = () => {
           </div>
 
           <div class="section">
-            <h4>Permitted Actions</h4>
+            <h4>Permitted Action to this policy</h4>
             ${Object.entries(policy.allowedActions).map(([k, v]) => `<div class="field"><strong>${k}</strong>: ${v.allowed ? 'Allowed' : 'Not Allowed'}${v.notes ? `<div style="color:#374151; margin-top:6px">${v.notes}</div>` : ''}</div>`).join('')}
           </div>
 
@@ -392,13 +401,13 @@ const Policies = () => {
 
         {/* Create / Edit Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={(v) => { setIsDialogOpen(v); if (!v) setEditingPolicy(null); }}>
-          <DialogContent className="w-full sm:w-[640px] max-h-[80vh]">
+          <DialogContent className="dialog-content w-full sm:w-[640px] max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>{editingPolicy ? 'Edit Policy' : 'Create New Policy'}</DialogTitle>
-              <DialogDescription>{editingPolicy ? 'Update policy details' : 'Define a new data sharing policy (one per line: Field | Reason)'}</DialogDescription>
+              <DialogDescription>{editingPolicy ? 'Update policy details' : 'Policy is a collection of data sharing rules'}</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 max-h-[60vh] overflow-auto pr-2">
+              <div className="grid grid-cols-1 gap-4 max-h-[60vh] overflow-auto pr-2 hide-scrollbar">
                 <div className="space-y-2">
                   <Label htmlFor="policyName">Policy Name</Label>
                   <Input id="policyName" value={(formData as any).policyName} onChange={(e) => setFormData({ ...(formData as any), policyName: e.target.value })} required />
@@ -409,11 +418,93 @@ const Policies = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="policyCategory">Policy Category</Label>
-                  <Input id="policyCategory" value={(formData as any).policyCategory} onChange={(e) => setFormData({ ...(formData as any), policyCategory: e.target.value })} />
+                  <select
+                    id="policyCategory"
+                    value={(formData as any).policyCategory}
+                    onChange={(e) => setFormData({ ...(formData as any), policyCategory: e.target.value })}
+                    className="w-full rounded-md border px-3 py-2 bg-card"
+                  >
+                    <option value="" disabled>Select category</option>
+                    <option>HR</option>
+                    <option>Finance</option>
+                    <option>IT</option>
+                    <option>Operations</option>
+                    <option>Legal</option>
+                    <option>Sales</option>
+                    <option>Marketing</option>
+                    <option>Product</option>
+                    <option>Security</option>
+                    <option>Compliance</option>
+                    <option>Engineering</option>
+                    <option>Customer Support</option>
+                    <option>Other</option>
+                  </select>
+                  {(formData as any).policyCategory === 'Other' && (
+                    <div className="mt-2">
+                      <Input placeholder="Specify category" value={(formData as any).policyCategoryOther || ''} onChange={(e) => setFormData({ ...(formData as any), policyCategoryOther: e.target.value })} />
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="protectedFields">Protected Fields — Field | Reason</Label>
-                  <Textarea id="protectedFields" value={(formData as any).protectedFieldsText} onChange={(e) => setFormData({ ...(formData as any), protectedFieldsText: e.target.value })} rows={4} />
+                  <Label>Protected Fields — Field & Reason</Label>
+                  <div className="space-y-2">
+                    {((formData as any).protectedFields || []).map((pf: any, idx: number) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                        <Input
+                          placeholder="Field name"
+                          value={pf.field}
+                          onChange={(e) => {
+                            const next = { ...(formData as any) };
+                            next.protectedFields = (next.protectedFields || []).slice();
+                            next.protectedFields[idx] = { ...next.protectedFields[idx], field: e.target.value };
+                            setFormData(next);
+                          }}
+                          className="col-span-5"
+                          required
+                        />
+                        <Input
+                          placeholder="Reason (optional)"
+                          value={pf.reason}
+                          onChange={(e) => {
+                            const next = { ...(formData as any) };
+                            next.protectedFields = (next.protectedFields || []).slice();
+                            next.protectedFields[idx] = { ...next.protectedFields[idx], reason: e.target.value };
+                            setFormData(next);
+                          }}
+                          className="col-span-6"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = { ...(formData as any) };
+                            next.protectedFields = (next.protectedFields || []).slice();
+                            next.protectedFields.splice(idx, 1);
+                            if (next.protectedFields.length === 0) next.protectedFields = [{ field: '', reason: '' }];
+                            setFormData(next);
+                          }}
+                          className="col-span-1 inline-flex items-center justify-center rounded-md px-2 py-1 text-sm border"
+                          aria-label="Remove field"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = { ...(formData as any) };
+                          next.protectedFields = (next.protectedFields || []).slice();
+                          next.protectedFields.push({ field: '', reason: '' });
+                          setFormData(next);
+                        }}
+                        className="inline-flex items-center gap-2 rounded-md px-3 py-2 border bg-card"
+                      >
+                        <Plus className="h-4 w-4" /> Add field
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
@@ -423,7 +514,7 @@ const Policies = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Permitted Actions</Label>
+                  <Label>Permitted Action to this policy</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <label className="flex items-center gap-2"><input type="checkbox" checked={(formData as any).allowed_view} onChange={(e) => setFormData({ ...(formData as any), allowed_view: e.target.checked })} /> View</label>
                     <label className="flex items-center gap-2"><input type="checkbox" checked={(formData as any).allowed_mask} onChange={(e) => setFormData({ ...(formData as any), allowed_mask: e.target.checked })} /> Mask</label>
@@ -457,7 +548,7 @@ const Policies = () => {
 
         {/* View Dialog */}
         <Dialog open={Boolean(viewPolicy)} onOpenChange={(v) => { if (!v) setViewPolicy(null); }}>
-          <DialogContent className="w-full sm:w-[640px] max-h-[80vh]">
+          <DialogContent className="dialog-content w-full sm:w-[640px] max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>{viewPolicy?.policyName}</DialogTitle>
               <DialogDescription>{viewPolicy?.policyDescription}</DialogDescription>
@@ -478,7 +569,7 @@ const Policies = () => {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">Permitted Actions</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Permitted Action to this policy</p>
                     <div className="grid grid-cols-1 gap-2">
                       {Object.entries(viewPolicy.allowedActions).map(([k, v]) => (
                         <div key={k} className="flex items-start gap-3">
