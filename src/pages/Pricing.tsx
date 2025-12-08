@@ -7,6 +7,7 @@ const pricingPlans = [
   {
     name: "Starter",
     price: "₹2,250",
+    amount: 2250,
     period: "per user/month",
     description: "Perfect for small teams",
     features: ["Up to 5 users", "5GB storage per user", "Basic encryption", "Email support"],
@@ -16,6 +17,7 @@ const pricingPlans = [
   {
     name: "Professional",
     price: "₹5,550",
+    amount: 5550,
     period: "per user/month",
     description: "For growing businesses",
     features: ["Unlimited users", "Unlimited storage", "Military-grade encryption", "Priority support", "Advanced audit logs"],
@@ -223,6 +225,20 @@ const Pricing: React.FC = () => {
                     </span>
                   </div>
                   <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        const params = new URLSearchParams();
+                        params.set("plan", plan.name);
+                        params.set("amount", String((plan as any).amount || "0"));
+                        if (inviteId) params.set("invite", inviteId);
+                        window.location.href = `/payment?${params.toString()}`;
+                      } catch (err) {
+                        // fallback
+                        window.location.href = 
+                          `/payment?plan=${encodeURIComponent(plan.name)}&amount=${encodeURIComponent(String((plan as any).amount || "0"))}${inviteId ? `&invite=${encodeURIComponent(inviteId)}` : ""}`;
+                      }
+                    }}
                     className={`w-full py-3 rounded-xl font-bold transition-all duration-300 transform mb-8 hover:scale-105 active:scale-95 shadow-lg ${
                       plan.featured
                         ? "bg-white text-blue-600 hover:bg-gray-100 hover:shadow-xl"

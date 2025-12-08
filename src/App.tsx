@@ -35,6 +35,7 @@ import NotFound from "./pages/NotFound";
 import FrontPage from "./pages/FrontPage";
 import Pricing from "./pages/Pricing";
 import JustPricing from "./pages/justpricing";
+import PaymentGateway from "./pages/PaymentGateway";
 import adminSignup from "./pages/adminSignup";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import AdminApproval from "./pages/AdminApproval";
@@ -172,6 +173,7 @@ const App = () => (
             <Route path="/" element={<FrontPage />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/justpricing" element={<JustPricing />} />
+            <Route path="/payment" element={<PaymentGateway />} />
 
             {/* Auth pages */}
             <Route path="/login" element={<Login />} />
