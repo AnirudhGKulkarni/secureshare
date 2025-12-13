@@ -240,11 +240,11 @@ const Pricing: React.FC = () => {
                         params.set("plan", plan.name);
                         params.set("amount", String((plan as any).amount || "0"));
                         if (inviteId) params.set("invite", inviteId);
-                        window.location.href = `/payment?${params.toString()}`;
+                        window.location.href = `/checkout?${params.toString()}`;
                       } catch (err) {
                         // fallback
                         window.location.href = 
-                          `/payment?plan=${encodeURIComponent(plan.name)}&amount=${encodeURIComponent(String((plan as any).amount || "0"))}${inviteId ? `&invite=${encodeURIComponent(inviteId)}` : ""}`;
+                          `/checkout?plan=${encodeURIComponent(plan.name)}&amount=${encodeURIComponent(String((plan as any).amount || "0"))}${inviteId ? `&invite=${encodeURIComponent(inviteId)}` : ""}`;
                       }
                     }}
                     className={`w-full py-3 rounded-xl font-bold transition-all duration-300 transform mb-8 hover:scale-105 active:scale-95 shadow-lg ${

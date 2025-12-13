@@ -19,6 +19,7 @@ import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/f
 const navigation = [
   { name: 'Dashboard', href: '/client', icon: Home, end: true },
   { name: 'Share Files', href: '/client/share', icon: Upload },
+  { name: 'Policies', href: '/client/policies', icon: FolderOpen },
   { name: 'Chat', href: '/client/messages', icon: MessageSquare },
   { name: 'Activity', href: '/client/activity', icon: History },
   { name: 'Security', href: '/client/security', icon: Lock },

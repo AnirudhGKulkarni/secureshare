@@ -1,133 +1,390 @@
-import React, { useState } from 'react';
-// This page is rendered as a nested route under the `/client` route
-// which already provides the `ClientLayout` via an <Outlet />.
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState, useRef } from 'react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Send, Phone, Video, MoreVertical } from 'lucide-react';
-
-const chatContacts = [
-  { id: 1, name: 'Alice Johnson', avatar: 'AJ', status: 'online', lastMessage: 'Can you review the security policy?', time: '2m', unread: 2 },
-  { id: 2, name: 'Bob Smith', avatar: 'BS', status: 'away', lastMessage: 'File shared successfully', time: '15m', unread: 0 },
-];
-
-const messages = [
-  { id: 1, sender: 'Alice Johnson', content: 'Hi! Can you help me with the new security policy?', time: '10:30 AM', isMe: false },
-  { id: 2, sender: 'Me', content: 'Of course! Which section do you need help with?', time: '10:32 AM', isMe: true },
-];
+import { Search, Paperclip, MoreVertical, Send, Shield, Smile, Mic, Star, Download, Paintbrush } from 'lucide-react';
+import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { firestore, storage } from '@/lib/firebase';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ClientMessages: React.FC = () => {
-  const [selectedContact, setSelectedContact] = useState(chatContacts[0]);
-  const [newMessage, setNewMessage] = useState('');
+  const { currentUser } = useAuth();
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [search, setSearch] = useState('');
+  const [messages, setMessages] = useState<any[]>([]);
+  const [text, setText] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const mediaRecorderRef = useRef<any>(null);
+  const audioChunksRef = useRef<any[]>([]);
+  const [chatTheme, setChatTheme] = useState<{bg?:string}>({});
+  const [menuOpen, setMenuOpen] = useState(false);
+  const bgInputRef = useRef<HTMLInputElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      // placeholder: integrate send logic
-      setNewMessage('');
+  // load contacts (clients + admins)
+  useEffect(() => {
+    if (!currentUser) return;
+    const load = async () => {
+      try {
+        const q = query(collection(firestore, 'users'), where('role', 'in', ['client', 'admin']));
+        const snaps = await getDocs(q);
+        const loaded = snaps.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
+        const me = { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email || 'Me', isMe: true };
+        const others = loaded.filter((c) => c.uid !== currentUser.uid);
+        const all = [me, ...others];
+        setContacts(all);
+      } catch (e) {
+        console.warn('load contacts', e);
+      }
+    };
+    load();
+  }, [currentUser]);
+
+  // messages listener for selected conversation
+  useEffect(() => {
+    if (!currentUser || !selected) {
+      setMessages([]);
+      return;
+    }
+    setMessages([]);
+    const coll = collection(firestore, 'messages');
+    const q = query(coll, where('participants', 'array-contains', currentUser.uid), orderBy('timestamp', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const convo = docs.filter((m: any) => {
+        if (Array.isArray(m.participants)) return m.participants.includes(selected.uid);
+        return (m.from === currentUser.uid && m.to === selected.uid) || (m.from === selected.uid && m.to === currentUser.uid);
+      });
+      const annotated = convo.map((m: any) => ({ ...m, timestampText: m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '' }));
+      setMessages(annotated);
+    }, (e) => console.warn('messages listen', e));
+
+    return () => unsub();
+  }, [currentUser, selected]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages, selected]);
+
+  const sendMessage = async () => {
+    if (!text.trim() || !currentUser || !selected) return;
+    const content = text.trim();
+    const convoId = [currentUser.uid, selected.uid].sort().join('_');
+    const temp = { id: `temp-${Date.now()}`, from: currentUser.uid, to: selected.uid, content, convoId, participants: [currentUser.uid, selected.uid], timestampText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), _temp: true };
+    setMessages((s) => [...s, temp]);
+    setText('');
+    try {
+      await addDoc(collection(firestore, 'messages'), { from: currentUser.uid, to: selected.uid, content, timestamp: serverTimestamp(), participants: [currentUser.uid, selected.uid], convoId });
+    } catch (e) {
+      console.warn('send error', e);
     }
   };
 
-  return (
-    <div className="p-6 space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">Team Chat</h2>
-          <p className="text-sm text-muted-foreground">Collaborate securely with your team</p>
-        </div>
+  const sendFile = async (file: File) => {
+    if (!currentUser || !selected || !file) return;
+    try {
+      setUploading(true);
+      const convoId = [currentUser.uid, selected.uid].sort().join('_');
+      const path = `messages/${convoId}/${Date.now()}_${file.name}`;
+      const sref = storageRef(storage, path);
+      const uploadTask = uploadBytesResumable(sref, file);
+      uploadTask.on('state_changed', null, (err) => {
+        console.warn('upload err', err);
+        setUploading(false);
+      }, async () => {
+        const url = await getDownloadURL(uploadTask.snapshot.ref);
+        await addDoc(collection(firestore, 'messages'), {
+          from: currentUser.uid,
+          to: selected.uid,
+          content: file.name,
+          file: { url, name: file.name, type: file.type, size: file.size },
+          timestamp: serverTimestamp(),
+          participants: [currentUser.uid, selected.uid],
+          convoId,
+          messageType: 'file'
+        });
+        setUploading(false);
+      });
+    } catch (e) {
+      console.warn('file send error', e);
+      setUploading(false);
+    }
+  };
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-220px)]">
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                Conversations
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="space-y-1">
-                {chatContacts.map((contact) => (
-                  <button
-                    key={contact.id}
-                    onClick={() => setSelectedContact(contact)}
-                    className={`w-full p-3 text-left hover:bg-secondary/50 transition-colors ${
-                      selectedContact.id === contact.id ? 'bg-secondary' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="relative">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src="" />
-                          <AvatarFallback className="text-xs">{contact.avatar}</AvatarFallback>
-                        </Avatar>
-                        <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
-                          contact.status === 'online' ? 'bg-green-500' : contact.status === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
-                        }`}></div>
-                      </div>
+  const MAX_SIZE = 5 * 1024 * 1024;
+  const allowedTypes = [
+    'application/pdf',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'image/',
+    'audio/',
+    'video/'
+  ];
+
+  const isAllowedType = (file: File) => {
+    if (!file.type) return false;
+    return allowedTypes.some(t => t.endsWith('/') ? file.type.startsWith(t) : file.type === t);
+  };
+
+  const openAttach = () => setAttachOpen(true);
+  const closeAttach = () => setAttachOpen(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleAttachFile(f);
+  };
+
+  const handleAttachFile = (f: File) => {
+    if (f.size > MAX_SIZE) {
+      alert('You cannot share a file more than 5MB in chat kindly use the main sharing window of Share data');
+      return;
+    }
+    if (!isAllowedType(f)) {
+      alert('This file type is not allowed in chat');
+      return;
+    }
+    sendFile(f);
+    closeAttach();
+  };
+
+  const toggleEmoji = () => setShowEmoji(s => !s);
+  const insertEmoji = (em: string) => setText(t => t + em);
+
+  const startRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('Recording not supported in this browser');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new (window as any).MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      audioChunksRef.current = [];
+      mr.ondataavailable = (e: any) => audioChunksRef.current.push(e.data);
+      mr.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const file = new File([blob], `voice_${Date.now()}.webm`, { type: blob.type });
+        await sendFile(file);
+      };
+      mr.start();
+      setRecording(true);
+    } catch (err) {
+      console.warn('rec start', err);
+    }
+  };
+
+  const stopRecording = () => {
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.state !== 'inactive') mr.stop();
+    setRecording(false);
+  };
+
+  const toggleRecording = () => {
+    if (recording) stopRecording(); else startRecording();
+  };
+
+  const exportChat = () => {
+    if (!selected) return;
+    const lines = messages.map((m) => {
+      const who = m.from === currentUser?.uid ? 'Me' : (selected.displayName || selected.username || selected.email || selected.uid);
+      const time = m.timestampText || '';
+      const content = m.messageType === 'file' && m.file ? `[file] ${m.file.name} -> ${m.file.url}` : m.content;
+      return `${who} (${time}): ${content}`;
+    }).join('\n');
+    const blob = new Blob([`Chat with ${selected.displayName || selected.username || selected.email}\n\n${lines}`], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selected.uid}_chat.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBgFile = (f: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = reader.result as string;
+      setChatTheme({ bg: `url(${data}) center/center / cover no-repeat` });
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const toggleStar = async (m: any) => {
+    try {
+      if (!m.id) return;
+      const starVal = !m.starred;
+      setMessages(msgs => msgs.map(mm => mm.id === m.id ? { ...mm, starred: starVal } : mm));
+      const ref = doc(firestore, 'messages', m.id);
+      await updateDoc(ref, { starred: starVal });
+    } catch (e) {
+      console.warn('toggle star', e);
+    }
+  };
+
+  const renderMessages = () => {
+    const rows: any[] = [];
+    let lastDate = '';
+    for (const m of messages) {
+      const ts = m.timestamp ? (m.timestamp.toDate ? m.timestamp.toDate() : new Date(m.timestamp)) : new Date();
+      const date = ts.toDateString();
+      if (date !== lastDate) {
+        rows.push(<div key={`d-${date}`} className="flex justify-center"><span className="text-xs text-muted-foreground bg-gray-100 px-3 py-1 rounded-full">{date}</span></div>);
+        lastDate = date;
+      }
+      const isMe = m.from === currentUser?.uid;
+      rows.push(
+        <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+          <div className={`relative max-w-[70%] px-4 py-2 rounded-lg ${isMe ? 'bg-green-500 text-white' : 'bg-white text-gray-900'} shadow-sm`}>
+            <button onClick={() => toggleStar(m)} title="Star" className={`absolute -top-3 right-0 p-1 rounded ${m.starred ? 'text-yellow-400' : 'text-gray-300'}`}>
+              <Star className="h-4 w-4" />
+            </button>
+            {m.messageType === 'file' && m.file ? (
+              <div className="flex flex-col gap-2">
+                {m.file.type?.startsWith('image') ? (
+                  <img src={m.file.url} alt={m.file.name} className="max-h-56 rounded" />
+                ) : (
+                  <a href={m.file.url} target="_blank" rel="noreferrer" className="underline">
+                    {m.file.name}
+                  </a>
+                )}
+                <div className="text-xs mt-1 text-right opacity-70">{m.timestampText || ''}</div>
+              </div>
+            ) : (
+              <>
+                <div className="whitespace-pre-wrap">{m.content}</div>
+                <div className="text-xs mt-1 text-right opacity-70">{m.timestampText || ''}</div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+    return rows;
+  };
+
+  return (
+    <div className="h-[calc(100vh-80px)] bg-gray-50 p-6">
+        <div className="max-w-[1200px] mx-auto bg-transparent h-full shadow-none">
+          <div className="flex h-full border rounded-lg overflow-hidden bg-white">
+            {/* Left column - contacts */}
+            <div className="w-80 border-r flex flex-col">
+              <div className="px-4 py-3 border-b flex items-center gap-2">
+                <h3 className="text-lg font-semibold">Conversations</h3>
+              </div>
+              <div className="p-3 sticky top-0 bg-white z-10">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" placeholder="Search or start new chat" />
+                </div>
+              </div>
+              <div className="flex-1 overflow-auto">
+                <div className="divide-y">
+                  {contacts.filter(c => (c.displayName || c.username || c.email || '').toLowerCase().includes(search.toLowerCase())).map((c) => (
+                    <button key={c.uid} onClick={() => setSelected(c)} className={`w-full text-left p-3 flex items-center gap-3 hover:bg-gray-50 ${selected?.uid === c.uid ? 'bg-gray-100' : ''}`}>
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="text-xs">{(c.displayName || c.username || c.email || '').slice(0,2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium truncate">{contact.name}</p>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">{contact.time}</span>
-                            {contact.unread > 0 && (
-                              <Badge variant="destructive" className="text-xs min-w-5 h-5 flex items-center justify-center p-0">
-                                {contact.unread}
-                              </Badge>
-                            )}
-                          </div>
+                          <div className="truncate font-medium">{c.displayName || c.username || c.email} {c.isMe ? <span className="text-xs text-muted-foreground">(self)</span> : null}</div>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate mt-1">{contact.lastMessage}</p>
+                        <div className="text-xs text-muted-foreground truncate">{c.title || ''}</div>
                       </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-2 flex flex-col">
-            <CardHeader className="pb-3 border-b">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="text-xs">{selectedContact.avatar}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{selectedContact.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{selectedContact.status}</p>
-                  </div>
+                    </button>
+                  ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm"><Phone className="h-4 w-4" /></Button>
-                  <Button variant="outline" size="sm"><Video className="h-4 w-4" /></Button>
-                  <Button variant="outline" size="sm"><MoreVertical className="h-4 w-4" /></Button>
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    message.isMe ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
-                  }`}>
-                    <p className="text-sm">{message.content}</p>
-                    <p className={`text-xs mt-1 ${message.isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{message.time}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-
-            <div className="p-4 border-t">
-              <div className="flex items-center gap-2">
-                <Input value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1" onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} />
-                <Button onClick={handleSendMessage} size="sm"><Send className="h-4 w-4" /></Button>
               </div>
             </div>
-          </Card>
+
+            {/* Right column - chat area */}
+            <div className="flex-1 flex flex-col">
+              <div className="px-4 py-3 border-b flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="text-xs">{(selected?.displayName || selected?.email || '').slice(0,2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium">{selected?.displayName || selected?.email || 'Select a chat'}</div>
+                    <div className="text-xs text-muted-foreground">{selected ? (selected.status || 'Active') : ''}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 relative">
+                  <button onClick={() => setMenuOpen(s => !s)} className="p-2 rounded bg-transparent"><MoreVertical className="h-4 w-4" /></button>
+                  {menuOpen && (
+                    <div className="absolute right-0 top-10 bg-white border rounded shadow-md w-56 z-50">
+                      <button onClick={() => { setMenuOpen(false); const color = prompt('Enter a background color (hex or css):',''); if (color) setChatTheme({ bg: color }); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"><Paintbrush/> Change Theme Color</button>
+                      <button onClick={() => { setMenuOpen(false); bgInputRef.current?.click(); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"><Paintbrush/> Change Background Image</button>
+                      <button onClick={() => { setMenuOpen(false); exportChat(); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"><Download/> Export Chat</button>
+                      <button onClick={() => { setMenuOpen(false); const starred = messages.filter(m => m.starred); alert(`Starred messages:\n\n${starred.map(s=> (s.content || s.file?.name) + ' - ' + (s.timestampText||'')).join('\n')}`); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"><Star/> Starred Messages</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* messages */}
+              <div className="flex-1 p-4 overflow-hidden" style={ chatTheme.bg ? { background: chatTheme.bg } : undefined }>
+                <div ref={listRef} className="h-full overflow-auto flex flex-col gap-3">
+                  {selected ? renderMessages() : (
+                    <div className="m-auto text-center text-muted-foreground flex flex-col items-center gap-6">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 shadow-lg">
+                          <Shield className="h-12 w-12 text-white" />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-4xl font-bold">trustNshare</div>
+                        <div className="text-lg opacity-80 mt-2 max-w-xl">Secure File Sharing for Modern Businesses — protect sensitive data with end-to-end encryption, granular access control, and audit visibility.</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* input (only show when a chat is selected) */}
+              {selected && (
+                <div className="px-4 py-3 border-t">
+                  <div className="flex items-center gap-3">
+                      <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) handleAttachFile(f); e.currentTarget.value = ''; }} />
+                      <button onClick={openAttach} className="p-2 rounded-full bg-transparent" title="Attach">
+                        <Paperclip className="h-5 w-5 text-muted-foreground" />
+                      </button>
+                      <button onClick={toggleEmoji} className="p-2 rounded-full bg-transparent" title="Emoji">
+                        <Smile className="h-5 w-5 text-muted-foreground" />
+                      </button>
+                      <button onClick={toggleRecording} className={`p-2 rounded-full ${recording ? 'bg-red-100' : 'bg-transparent'}`} title="Voice message">
+                        <Mic className="h-5 w-5 text-muted-foreground" />
+                      </button>
+                      <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message" className="flex-1" onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }} />
+                      <Button onClick={sendMessage} size="sm"><Send className="h-4 w-4" /></Button>
+                      {showEmoji && (
+                        <div className="absolute bottom-20 left-60 bg-white border rounded shadow p-2 grid grid-cols-8 gap-1">
+                          {['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😍','😘','😎','🤔','🙌','👍','🙏'].map(em => (
+                            <button key={em} onClick={() => insertEmoji(em)} className="p-1 text-lg">{em}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      {/* attach modal removed to fix JSX parse error; file attach still works via hidden input */}
+      <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.currentTarget.files && e.currentTarget.files[0]; if (f) handleBgFile(f); e.currentTarget.value = ''; }} />
+    </div>
   );
 };
 

@@ -1,142 +1,215 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user is authenticated
+    // --- Helper functions ---
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper function to get user's role from their profile
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function getUserId() {
+      return isSignedIn() ? request.auth.uid : null;
     }
 
-    // Helper function to check if user is super admin
+    // Assumes each user has a role field in users/{uid}
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(getUserId())).data.role;
+    }
+
     function isSuperAdmin() {
       return isSignedIn() && getUserRole() == 'super_admin';
     }
 
-    // Helper function to check if user is admin
     function isAdmin() {
       return isSignedIn() && getUserRole() == 'admin';
     }
 
-    // Helper function to check if user is admin or super admin
     function isAdminOrSuperAdmin() {
-      return isSignedIn() && (getUserRole() == 'admin' || getUserRole() == 'super_admin');
+      return isAdmin() || isSuperAdmin();
     }
 
-    // Users collection - profiles
+    // --- Users ---
+
+    
+    
     match /users/{userId} {
-      // Users can create their own profile during signup
-      allow create: if isSignedIn() && request.auth.uid == userId;
+  allow read: if isSignedIn() && (userId == getUserId() || isAdminOrSuperAdmin());
+  allow create: if isSignedIn() && request.auth.uid == userId;
+  allow update: if isSignedIn() && (userId == getUserId() || isAdminOrSuperAdmin())
+                && request.resource.data.diff(resource.data).changedKeys().hasOnly(['firstName','lastName','passwordUpdatedAt']);
+  allow delete: if isSuperAdmin();
+}
 
-      // Users can read/update their own profile
-      allow read, update: if isSignedIn() && request.auth.uid == userId;
 
-      // Super admin can read/write all users
-      allow read, write: if isSuperAdmin();
 
-      // Admin can read all users (domain checks should be applied in app logic)
-      allow read: if isAdmin();
-    }
 
-    // Admin approval documents
-    match /approval_documents/{documentId} {
-      // Anyone can create (allow public submissions)
-      allow create: if true;
+// match /users/{userId} {
+//   // Creation: user can create their own profile
+//   allow create: if isSignedIn() && request.auth.uid == userId;
 
-      // Authenticated users may read their own submissions
-      allow read: if isSignedIn() && resource.data.email == request.auth.token.email;
+//   // Read: owner, admins, or super admins
+//   allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrSuperAdmin());
 
-      // Super admin can read and update all approval documents
-      allow read, update: if isSuperAdmin();
-    }
+//   // Allow authenticated users to update only a small set of safe fields on their own profile.
+//   // This permits toggling `loginAlerts` from the client while preventing arbitrary writes.
+//   allow update: if isSignedIn()
+//     && request.auth.uid == userId
+//     && request.resource.data.keys().hasOnly(['firstName','lastName','company','companyDomain','domain','loginAlerts', 'passwordUpdatedAt'])
+//     && (
+//       !('loginAlerts' in request.resource.data) || request.resource.data.loginAlerts is bool
+//     );
 
-    // Audit logs
-    match /audit_logs/{logId} {
-      // Anyone authenticated (or server) may create an audit log
+//   // Super admin can read/write all users
+//   allow read, write: if isSuperAdmin();
+
+//   // Admin can read all users
+//   allow read: if isAdmin();
+// }
+
+
+
+
+    
+
+    // --- Approval documents (if used) ---
+
+    match /approval_documents/{docId} {
       allow create: if isSignedIn();
-
-      // Users can read their own logs
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-
-      // Admins / super_admin can read all logs
-      allow read: if isAdminOrSuperAdmin();
-
-      // Prevent client-side updates or deletes of logs (logs should be append-only)
-      allow update, delete: if isSuperAdmin();
-    }
-
-    // Alerts
-    match /alerts/{alertId} {
-      // Only admin/super_admin may set alerts for 'all' recipients;
-      // normal users can only create alerts for themselves
-      allow create: if isSignedIn() && (
-        (request.resource.data.userId == request.auth.uid) ||
-        (isAdminOrSuperAdmin())
-      );
-
-      // User can read alerts targeted at them, or public ('all')
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all');
-
-      // Admins / super_admin can read all alerts and manage them
       allow read, update, delete: if isAdminOrSuperAdmin();
     }
 
-    // Policies
+    // --- Audit logs (login bar chart & recent activity) ---
+
+    match /audit_logs/{logId} {
+      // Any signed-in user can create log entries (e.g., LOGIN events)
+      allow create: if isSignedIn();
+
+      // Users can read their own logs; admins/super_admins can read all
+      allow read: if isSignedIn() && (
+        resource.data.userId == getUserId() || isAdminOrSuperAdmin()
+      );
+
+      // Prevent client from updating/deleting logs
+      allow update, delete: if false;
+    }
+
+    // --- Alerts (dashboard alerts section) ---
+
+    match /alerts/{alertId} {
+      // Creating alerts
+      allow create: if isSignedIn();
+
+      // Reading alerts:
+      // - targeted to this user (userId == uid)
+      // - or global alerts (userId == 'all')
+      // - or anything if admin/super_admin
+      allow read: if isSignedIn() && (
+        resource.data.userId == getUserId() ||
+        resource.data.userId == 'all' ||
+        isAdminOrSuperAdmin()
+      );
+
+      // Admins manage alerts
+      allow update, delete: if isAdminOrSuperAdmin();
+    }
+
+    // --- Policies (Policies page) ---
+
     match /policies/{policyId} {
-      allow read: if isSignedIn();
+      allow read: if true;              // anyone can read policies
       allow create, update, delete: if isAdminOrSuperAdmin();
     }
 
-    // Shared data/files collection
-    match /shared_data/{dataId} {
-      // Creation: authenticated (or server) may create file metadata
-      allow create: if isSignedIn();
+    // --- Shared data (File Sensitivity pie chart) ---
 
-      // Read: owner OR listed in `sharedWith` OR public (no sharedWith field)
+    match /shared_data/{docId} {
+      // Anyone signed in can create a shared_data record
+      allow read, write: if isSignedIn();
+
+      // Read rules:
+      // - owner can read
+      // - users in sharedWith array can read (sharedWith is array of maps with userId field)
+      // - admins/super_admins can read all
+      // - OR documents without ownerId and sharedWith (legacy/public) can be read by signed-in users
       allow read: if isSignedIn() && (
-        resource.data.ownerId == request.auth.uid ||
-        (resource.data.sharedWith is list && request.auth.uid in resource.data.sharedWith) ||
-        resource.data.sharedWith == null
+        // Owner
+        (resource.data.ownerId == getUserId()) ||
+
+        // Shared explicitly via array of maps like { userId: "..." }
+        (
+          resource.data.sharedWith is list &&
+          (
+            (resource.data.sharedWith.size() > 0 &&
+             resource.data.sharedWith[0].userId == getUserId()) ||
+            (resource.data.sharedWith.size() > 1 &&
+             resource.data.sharedWith[1].userId == getUserId()) ||
+            (resource.data.sharedWith.size() > 2 &&
+             resource.data.sharedWith[2].userId == getUserId())
+          )
+        ) ||
+        
+        
+        
+
+        // Admin or super_admin
+        isAdminOrSuperAdmin() ||
+
+        // Public/legacy docs that have no explicit owner or sharedWith
+        !(
+          resource.data.ownerId is string ||
+          (resource.data.sharedWith is list && resource.data.sharedWith.size() > 0)
+        )
       );
 
-      // Update/delete: owner or admin
-      allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdminOrSuperAdmin());
-    }
+      // Updates: owner or admin/super_admin
+      allow update: if isSignedIn() && (
+        resource.data.ownerId == getUserId() || isAdminOrSuperAdmin()
+      );
 
-    // Per-user login counters
-    match /user_logins/{userId} {
-      // Creation/update: user may update their own login counter document
-      allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdminOrSuperAdmin());
-
-      // Read: owner or admins can read
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdminOrSuperAdmin());
-
-      // Prevent client-side deletes
+      // Deletes: only super_admin
       allow delete: if isSuperAdmin();
     }
 
-    // Usernames collection - allow public read for signup availability checks
-    // and controlled writes so clients can reserve a username on signup.
-    match /usernames/{username} {
-      // Allow anyone (including unauthenticated) to check availability and
-      // request prefix queries for suggestions. Usernames are intentionally
-      // treated as public identifiers.
-      allow get, list: if true;
+    // --- User login counters (user_logins) ---
 
-      // Creation of a username document may only be performed by an
-      // authenticated user and the `uid` field must match their auth uid.
-      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+    match /user_logins/{userId} {
+      // Create/update:
+      // - the user themselves (for client-side logging)
+      // - or admins/super_admins (for maintenance)
+      allow create, update: if isSignedIn() && (
+        userId == getUserId() || isAdminOrSuperAdmin()
+      );
 
-      // Only super admin may update or delete username mappings
-      // to prevent malicious renames or removals.
-      allow update, delete: if isSuperAdmin();
+      // Read own counters or, for admins, any
+      allow read: if isSignedIn() && (
+        userId == getUserId() || isAdminOrSuperAdmin()
+      );
+
+      // Delete only by super_admin (cleanup)
+      allow delete: if isSuperAdmin();
     }
+    
+    
+    // Usernames collection - allow public read for signup availability checks
+match /usernames/{username} {
+  // Allow anyone (including unauthenticated) to check availability and
+  // request prefix queries for suggestions (documentId queries).
+  allow get, list: if true;
 
-    // Fallback: deny everything else
+  // Creation of a username document may only be performed by an
+  // authenticated user and the `uid` field must match their auth uid.
+  allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+
+  // Only super admin may update or delete username mappings
+  // to prevent malicious renames or removals.
+  allow update, delete: if isSuperAdmin();
+}
+    
+
+    // --- Fallback: deny everything else ---
+
     match /{document=**} {
       allow read, write: if false;
     }

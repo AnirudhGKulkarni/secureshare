@@ -43,6 +43,9 @@ const PaymentGateway: React.FC = () => {
 
     // Contact / inputs
     const [userContact, setUserContact] = useState<string>("Guest");
+    // payee details to show name + email instead of generic Guest
+    const [payeeName, setPayeeName] = useState<string>("");
+    const [payeeEmail, setPayeeEmail] = useState<string>("");
     const [upiId, setUpiId] = useState<string>(DEFAULT_ACCOUNT.upi);
     const [cardNumber, setCardNumber] = useState<string>("");
     const [cardName, setCardName] = useState<string>("");
@@ -63,6 +66,10 @@ const PaymentGateway: React.FC = () => {
           const auth = (fb as any).auth;
           const user = auth?.currentUser;
           if (user) setUserContact((user.email as string) || (user.displayName as string) || "User");
+          if (user) {
+            setPayeeEmail((user.email as string) || "");
+            setPayeeName(((user.displayName as string) || (user.email as string)) || "");
+          }
         } catch (e) {
           // ignore; keep Guest
         }
@@ -85,14 +92,29 @@ const PaymentGateway: React.FC = () => {
         const auth = (fb as any).auth;
         if (firestore) {
           const { collection, addDoc } = await import("firebase/firestore");
+          const createdAt = new Date();
+          // subscription dates: start = next day, expiry = start + 50 days - 1
+          let startDate: Date | null = null;
+          let expiryDate: Date | null = null;
+          if (selectedPlan === "Starter") {
+            startDate = new Date(createdAt);
+            startDate.setDate(startDate.getDate() + 1);
+            expiryDate = new Date(startDate);
+            expiryDate.setDate(startDate.getDate() + 50 - 1);
+          }
+
           const payload = {
             plan: selectedPlan,
             amount: total,
             tax,
             method: selected,
             contact: userContact,
+            payeeName: payeeName || null,
+            payeeEmail: payeeEmail || null,
             account: DEFAULT_ACCOUNT,
-            createdAt: new Date(),
+            createdAt,
+            startDate: startDate ? startDate.toISOString() : null,
+            expiryDate: expiryDate ? expiryDate.toISOString() : null,
             inviteId,
           } as any;
           try {
@@ -141,7 +163,7 @@ const PaymentGateway: React.FC = () => {
       {/* contact info row with details toggle */}
       <div className="max-w-6xl mx-auto mb-2 px-4">
         <div className="bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-4">
-          <div className="text-sm text-slate-700">{userContact || "Guest"}</div>
+          <div className="text-sm text-slate-700">{(payeeName || userContact) ? `${payeeName || userContact}${payeeEmail ? ` • ${payeeEmail}` : ""}` : "Guest"}</div>
           <button
             type="button"
             aria-expanded={showDetailsOpen}
@@ -166,7 +188,25 @@ const PaymentGateway: React.FC = () => {
                 <div>Amount: <span className="font-medium">{fmt(amount)}</span></div>
                 <div>Taxes & fees: <span className="font-medium">{fmt(tax)}</span></div>
                 <div className="mt-1">Total: <span className="font-semibold">{fmt(total)}</span></div>
-                <div className="mt-2 text-xs text-slate-500">This section explains what you're paying for.</div>
+                {selectedPlan === "Starter" && (
+                  <div className="mt-2 text-sm text-slate-600">
+                    <div className="font-medium">Starter plan validity: 50 days</div>
+                    <div className="text-xs">Starts: {(() => {
+                      const purchase = new Date();
+                      const start = new Date(purchase);
+                      start.setDate(start.getDate() + 1);
+                      return start.toLocaleDateString();
+                    })()}</div>
+                    <div className="text-xs">Expires: {(() => {
+                      const purchase = new Date();
+                      const start = new Date(purchase);
+                      start.setDate(start.getDate() + 1);
+                      const expiry = new Date(start);
+                      expiry.setDate(start.getDate() + 50 - 1);
+                      return expiry.toLocaleDateString();
+                    })()}</div>
+                  </div>
+                )}
               </div>
               <div>
                 <div className="font-semibold text-slate-900">Recipient / Bank</div>
@@ -174,7 +214,7 @@ const PaymentGateway: React.FC = () => {
                 <div>A/c: <span className="font-medium">{DEFAULT_ACCOUNT.accountNumber}</span></div>
                 <div>IFSC: <span className="font-medium">{DEFAULT_ACCOUNT.ifsc}</span></div>
                 <div>UPI: <span className="font-medium">{DEFAULT_ACCOUNT.upi}</span></div>
-                <div className="mt-2 text-xs text-slate-500">Only visible when you open details.</div>
+                
               </div>
             </div>
           </div>

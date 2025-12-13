@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Shield } from 'lucide-react';
+import { Shield, Download } from 'lucide-react';
 import policiesData from '@/data/policies.json';
+import { firestore } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 
 interface Policy {
   id: string;
@@ -20,20 +22,109 @@ const ClientPolicies: React.FC = () => {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [viewPolicy, setViewPolicy] = useState<Policy | null>(null);
 
+  const handleDownloadPDF = (policy: Policy | null) => {
+    if (!policy) return;
+    // Client download should not prompt — use a generic signer label.
+    const signer = 'Client';
+    const timestamp = new Date().toLocaleString();
+
+    const content = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Policy - ${policy.policyName}</title>
+          <style>
+            body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 24px; color: #111827 }
+            .header { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #e5e7eb; padding-bottom:12px; margin-bottom:16px }
+            .brand { font-size:18px; font-weight:700; color:#0ea5a4 }
+            .title { font-size:16px; font-weight:600 }
+            .section { margin-top:12px }
+            .section h4 { margin:0 0 6px 0; font-size:13px; color:#374151 }
+            .field { border:1px solid #e5e7eb; padding:8px; border-radius:6px; margin-bottom:8px }
+            .footer { margin-top:20px; border-top:1px dashed #d1d5db; padding-top:10px; font-size:12px; color:#6b7280 }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="brand">trustNshare</div>
+            <div style="text-align:right">
+              <div style="font-weight:600">${policy.policyName}</div>
+              <div style="font-size:12px;color:#6b7280">${policy.policyCategory || ''}</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h4>Description</h4>
+            <div class="field">${(policy.policyDescription || '').replace(/\n/g, '<br/>')}</div>
+          </div>
+
+          <div class="section">
+            <h4>Protected Fields</h4>
+            ${((policy.protectedFields || []) as any[]).map(pf => `<div class="field"><strong>${pf.field}</strong><div style="color:#374151; margin-top:6px">${pf.reason || ''}</div></div>`).join('')}
+          </div>
+
+          <div class="section">
+            <h4>Allowed Actions</h4>
+            ${Object.entries(policy.allowedActions || {}).map(([k, v]: any) => `<div class="field"><strong>${k}</strong>: ${v.allowed ? 'Allowed' : 'Not Allowed'}${v.notes ? `<div style="color:#374151; margin-top:6px">${v.notes}</div>` : ''}</div>`).join('')}
+          </div>
+
+          <div class="footer">Digitally signed by ${signer} on ${timestamp}</div>
+        </body>
+      </html>
+    `;
+
+    const w = window.open('', '_blank');
+    if (!w) {
+      // popup blocked
+      alert('Unable to open print window. Please allow popups for this site.');
+      return;
+    }
+    w.document.write(content);
+    w.document.close();
+    setTimeout(() => {
+      try { w.focus(); w.print(); } catch (err) { /* ignore */ }
+    }, 400);
+  };
+
   useEffect(() => {
-    // Load policies from localStorage or use static data
+    // Prefer admin-managed policies stored in localStorage (key: 'policies_v1').
+    // If none found, subscribe to Firestore realtime collection. Final fallback is static JSON.
     try {
       const raw = localStorage.getItem('policies_v1');
       if (raw) {
-        const parsed = JSON.parse(raw);
-        setPolicies(parsed);
-        return;
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            setPolicies(parsed as any[]);
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to parse policies_v1 from localStorage:', err);
+        }
       }
-    } catch (e) {
-      console.error('Error loading policies from localStorage', e);
+    } catch (err) {
+      console.error('localStorage not available or accessible:', err);
     }
-    // Fallback to static JSON
-    setPolicies((policiesData as any[]) || []);
+
+    // Subscribe to Firestore `policies` collection (realtime).
+    try {
+      const ref = collection(firestore, 'policies');
+      const q = query(ref, orderBy('policyName'));
+      const unsub = onSnapshot(q, (snap) => {
+        const out: any[] = [];
+        snap.forEach((d) => {
+          out.push({ id: d.id, ...(d.data() as any) });
+        });
+        setPolicies(out);
+      }, (err) => {
+        console.error('Failed to subscribe to policies:', err);
+        setPolicies((policiesData as any[]) || []);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.error('Error initializing policies listener', e);
+      setPolicies((policiesData as any[]) || []);
+    }
   }, []);
 
   return (
@@ -161,6 +252,9 @@ const ClientPolicies: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+            <Button variant="outline" onClick={() => handleDownloadPDF(viewPolicy)}>
+              <Download className="h-4 w-4 mr-1" /> Download
+            </Button>
             <Button variant="outline" onClick={() => setViewPolicy(null)}>Close</Button>
           </div>
         </DialogContent>

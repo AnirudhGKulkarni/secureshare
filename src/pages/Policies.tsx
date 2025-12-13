@@ -255,7 +255,10 @@ const Policies = () => {
   // Prompts for admin name to include a textual "Digitally signed by" footer with timestamp.
   const handleDownloadPDF = (policy: StructuredPolicy | null) => {
     if (!policy) return;
-    const adminName = window.prompt('Enter your name for digital signature (will appear on PDF):', '') || 'Admin';
+    const rawAdminName = window.prompt('Enter your name for digital signature (will appear on PDF):', '');
+    // If admin cancels the prompt (returns null), do not proceed with PDF generation
+    if (rawAdminName === null) return;
+    const adminName = (rawAdminName || '').trim() || 'Admin';
     const timestamp = new Date().toLocaleString();
 
     const content = `
