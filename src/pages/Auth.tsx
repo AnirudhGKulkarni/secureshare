@@ -47,19 +47,19 @@ const Auth: React.FC = () => {
     {
       title: "Secure vault",
       svg: (
-        <img src="/1.jpg" alt="Secure vault" className="w-full h-auto object-cover" />
+        <img src="/1.jpg" alt="Secure vault" className="max-w-full max-h-full w-auto h-auto object-contain" />
       ),
     },
     {
       title: "Encrypted sharing",
       svg: (
-        <img src="/2.jpg" alt="Encrypted sharing" className="w-full h-auto object-cover" />
+        <img src="/2.jpg" alt="Encrypted sharing" className="max-w-full max-h-full w-auto h-auto object-contain" />
       ),
     },
     {
       title: "Audit & control",
       svg: (
-        <img src="/3.jpg" alt="Audit and control" className="w-full h-auto object-cover" />
+        <img src="/3.jpg" alt="Audit and control" className="max-w-full max-h-full w-auto h-auto object-contain" />
       ),
     },
   ];
@@ -778,9 +778,9 @@ const Auth: React.FC = () => {
                   <div className="overflow-hidden rounded-md w-full h-full flex items-center justify-center">
                     <div className="w-full h-full flex items-center justify-center">
                       <div className="w-full h-full flex items-center justify-center px-6">
-                        <div className="w-full h-full">
-                          {/* SVGs scale to fill the available height while preserving aspect ratio */}
-                          <div className="w-full h-full">{carouselItems[current].svg}</div>
+                        <div className="w-full h-full flex items-center justify-center">
+                          {/* Images will scale to fit their intrinsic aspect ratio */}
+                          <div className="w-full h-full flex items-center justify-center">{carouselItems[current].svg}</div>
                         </div>
                       </div>
                     </div>
