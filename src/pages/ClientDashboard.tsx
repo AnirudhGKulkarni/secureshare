@@ -494,7 +494,7 @@ const ClientDashboard: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Activity className="h-4 w-4 text-primary" />
-                    <h3 className="font-semibold">Recent Activity</h3>
+                    <h3 className="font-semibold text-foreground">Recent Activity</h3>
                   </div>
 
                   <div className="relative">
@@ -515,7 +515,7 @@ const ClientDashboard: React.FC = () => {
                               <div className="flex items-start gap-3">
                                 <Icon className="h-5 w-5 text-muted-foreground mt-1" />
                                 <div className="flex-1">
-                                  <div className="text-sm font-medium">
+                                  <div className="text-sm font-medium text-foreground">
                                     {activity.action}
                                   </div>
                                   {activity.resource && (

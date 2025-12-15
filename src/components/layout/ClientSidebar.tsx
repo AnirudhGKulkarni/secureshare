@@ -51,7 +51,7 @@ const getRelativeTime = (ts: any): string => {
 };
 
 export const ClientSidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: boolean; onClose?: () => void }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, profile } = useAuth();
   const activityRef = useRef<HTMLDivElement | null>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
@@ -107,7 +107,7 @@ export const ClientSidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: bo
 
   const panel = (
     <div className="flex flex-col w-64 bg-white dark:bg-card border-r border-border h-full">
-      <div className="flex h-20 items-center px-0 border-b border-border bg-card">
+      <div className="flex h-20 items-center px-0 border-b border-border">
         <div className="w-full h-20 overflow-hidden">
           <img src="/trustNshare.jpg" alt="trustNshare" className="w-full h-20 object-cover block dark:hidden" />
           <img src="/bg.png" alt="trustNshare dark" className="w-full h-20 object-cover hidden dark:block" />

@@ -33,7 +33,7 @@ const ClientSecurity: React.FC = () => {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Security</h2>
+        <h2 className="text-2xl font-bold text-foreground">Security</h2>
         <p className="text-sm text-muted-foreground">Manage security settings for your account</p>
       </div>
 
@@ -71,10 +71,27 @@ const ClientSecurity: React.FC = () => {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-2">
+        {/* <div className="flex justify-end gap-2">
           <Button variant="outline">Reset Defaults</Button>
           <Button>Save Changes</Button>
-        </div>
+        </div> */}
+
+        <div className="flex justify-end gap-2">
+  <Button
+    variant="outline"
+    className="text-black dark:text-white"
+  >
+    Reset Defaults
+  </Button>
+
+  <Button className="text-black dark:text-white">
+    Save Changes
+  </Button>
+</div>
+
+
+
+
       </div>
     </div>
   );

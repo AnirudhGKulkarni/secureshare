@@ -4,7 +4,6 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- Helper functions ---
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,7 +12,6 @@ service cloud.firestore {
       return isSignedIn() ? request.auth.uid : null;
     }
 
-    // Assumes each user has a role field in users/{uid}
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(getUserId())).data.role;
     }
@@ -31,180 +29,186 @@ service cloud.firestore {
     }
 
     // --- Users ---
-
-    
-    
     match /users/{userId} {
-  allow read: if isSignedIn() && (userId == getUserId() || isAdminOrSuperAdmin());
-  allow create: if isSignedIn() && request.auth.uid == userId;
-  rules_version = '2';
+      allow read: if isSignedIn() && (userId == getUserId() || isAdminOrSuperAdmin());
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
 
-  service cloud.firestore {
-    match /databases/{database}/documents {
+      allow update: if isSignedIn() && (
+        isAdminOrSuperAdmin() ||
+        (
+          userId == getUserId() &&
+          request.resource.data
+            .diff(resource.data)
+            .changedKeys()
+            .hasOnly([
+              'firstName',
+              'lastName',
+              'company',
+              'companyDomain',
+              'domain',
+              'loginAlerts',
+              'passwordUpdatedAt',
+              'avatar'
+            ])
+        )
+      );
 
-      // --- Helper functions ---
-      function isSignedIn() {
-        return request.auth != null;
-      }
+      allow delete: if isSuperAdmin();
+    }
 
-      function getUserId() {
-        return isSignedIn() ? request.auth.uid : null;
-      }
+    // --- Payments ---
+    match /payments/{paymentId} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == getUserId()
+        && request.resource.data.amount is number
+        && request.resource.data.plan is string
+        && request.resource.data.createdAt is timestamp;
 
-      // Attempt to read the user's role from their profile doc. May be null.
-      function getUserRole() {
-        return get(/databases/$(database)/documents/users/$(getUserId())).data.role;
-      }
+      allow read: if isSignedIn() &&
+        (resource.data.userId == getUserId() || isAdminOrSuperAdmin());
 
-      function isSuperAdmin() {
-        return isSignedIn() && getUserRole() == 'super_admin';
-      }
+      allow update, delete: if false;
+    }
 
-      function isAdmin() {
-        return isSignedIn() && getUserRole() == 'admin';
-      }
+    // --- Approval documents ---
+    match /approval_documents/{docId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdminOrSuperAdmin();
+    }
 
-      function isAdminOrSuperAdmin() {
-        return isAdmin() || isSuperAdmin();
-      }
+    // --- Audit logs ---
+    match /audit_logs/{logId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() &&
+        (resource.data.userId == getUserId() || isAdminOrSuperAdmin());
+      allow update, delete: if false;
+    }
 
-      // --- Users ---
-      // Users can read their own profile. Admins / super_admins can read all.
-      // Creation allowed for the authenticated user (signup flow).
-      // Updates: admins may update any field; users may update only a small safe set.
-      match /users/{userId} {
-        allow read: if isSignedIn() && (userId == getUserId() || isAdminOrSuperAdmin());
-        allow create: if isSignedIn() && request.auth.uid == userId;
+    // --- Alerts ---
+    match /alerts/{alertId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.userId == getUserId() ||
+        resource.data.userId == 'all' ||
+        isAdminOrSuperAdmin()
+      );
+      allow update, delete: if isAdminOrSuperAdmin();
+    }
 
-        allow update: if isSignedIn() && (
-          // Admins / super_admins can update any field
-          isAdminOrSuperAdmin() ||
-          // Regular users may only modify a restricted set of keys on their own profile
-          (userId == getUserId()
-            && request.resource.data.diff(resource.data).changedKeys().hasOnly(['firstName','lastName','company','companyDomain','domain','loginAlerts','passwordUpdatedAt'])
-          )
-        );
+    // --- Policies ---
+    match /policies/{policyId} {
+      allow read: if true;
+      allow create, update, delete: if isAdminOrSuperAdmin();
+    }
 
-        // Deletion reserved for super_admin only
-        allow delete: if isSuperAdmin();
-      }
+    // --- Shared data ---
+    match /shared_data/{docId} {
+      allow create: if isSignedIn();
 
-      // --- Payments ---
-      // Allow authenticated users to create a payment record for their own UID.
-      // Clients cannot modify or delete payment records — server/private code should manage them.
-      match /payments/{paymentId} {
-        allow create: if isSignedIn()
-          && request.resource.data.userId == getUserId()
-          && request.resource.data.amount is number
-          && request.resource.data.plan is string
-          && request.resource.data.createdAt is timestamp;
-
-        allow read: if isSignedIn() && (resource.data.userId == getUserId() || isAdminOrSuperAdmin());
-
-        // Prevent client-side updates/deletes to payment records
-        allow update, delete: if false;
-      }
-
-      // --- Approval documents (if used) ---
-      match /approval_documents/{docId} {
-        allow create: if isSignedIn();
-        allow read, update, delete: if isAdminOrSuperAdmin();
-      }
-
-      // --- Audit logs (login bar chart & recent activity) ---
-      match /audit_logs/{logId} {
-        // Any signed-in user can create log entries (e.g., LOGIN events)
-        allow create: if isSignedIn();
-
-        // Users can read their own logs; admins/super_admins can read all
-        allow read: if isSignedIn() && (
-          resource.data.userId == getUserId() || isAdminOrSuperAdmin()
-        );
-
-        // Prevent client from updating/deleting logs
-        allow update, delete: if false;
-      }
-
-      // --- Alerts (dashboard alerts section) ---
-      match /alerts/{alertId} {
-        // Creating alerts
-        allow create: if isSignedIn();
-
-        // Reading alerts: owner, global, or admin
-        allow read: if isSignedIn() && (
-          resource.data.userId == getUserId() ||
-          resource.data.userId == 'all' ||
-          isAdminOrSuperAdmin()
-        );
-
-        // Admins manage alerts
-        allow update, delete: if isAdminOrSuperAdmin();
-      }
-
-      // --- Policies (Policies page) ---
-      match /policies/{policyId} {
-        allow read: if true;              // anyone can read policies
-        allow create, update, delete: if isAdminOrSuperAdmin();
-      }
-
-      // --- Shared data (File Sensitivity pie chart) ---
-      match /shared_data/{docId} {
-        // Anyone signed in can create a shared_data record
-        allow read, write: if isSignedIn();
-
-        // Read rules: owner, explicit sharedWith, admin, or public legacy docs
-        allow read: if isSignedIn() && (
-          (resource.data.ownerId == getUserId()) ||
-          (
-            resource.data.sharedWith is list && (
-              (resource.data.sharedWith.size() > 0 && resource.data.sharedWith[0].userId == getUserId()) ||
-              (resource.data.sharedWith.size() > 1 && resource.data.sharedWith[1].userId == getUserId()) ||
-              (resource.data.sharedWith.size() > 2 && resource.data.sharedWith[2].userId == getUserId())
+          // Read: allow owners and admins, and allow access when the document
+          // is explicitly shared with the signed-in user. This supports either
+          // an array of user ids (`sharedWith: ['uid', ...]`) or an array of
+          // objects like `{ userId: '...' }` (attempt a best-effort check).
+          allow read: if isSignedIn() && (
+            resource.data.ownerId == getUserId() ||
+            isAdminOrSuperAdmin() ||
+            (
+              resource.data.sharedWith is list && (
+                // common case: sharedWith is an array of uids
+                request.auth.uid in resource.data.sharedWith
+                // fallback attempt: if sharedWith is an array of objects, try
+                // to check the first element's userId as a heuristic. This is
+                // a best-effort check — for robust querying prefer adding a
+                // `sharedWithUserIds` array to documents or query from the
+                // client with an explicit filter.
+                || (resource.data.sharedWith.size() > 0 && resource.data.sharedWith[0].userId == request.auth.uid)
+              )
             )
-          ) ||
-          isAdminOrSuperAdmin() ||
-          !(
-            resource.data.ownerId is string ||
-            (resource.data.sharedWith is list && resource.data.sharedWith.size() > 0)
-          )
-        );
+          );
 
-        // Updates: owner or admin/super_admin
-        allow update: if isSignedIn() && (
-          resource.data.ownerId == getUserId() || isAdminOrSuperAdmin()
-        );
+      allow update: if isSignedIn() &&
+        (resource.data.ownerId == getUserId() || isAdminOrSuperAdmin());
 
-        // Deletes: only super_admin
-        allow delete: if isSuperAdmin();
-      }
+      allow delete: if isSuperAdmin();
+    }
 
-      // --- User login counters (user_logins) ---
-      match /user_logins/{userId} {
-        // Create/update: the user themselves or admins/super_admins
-        allow create, update: if isSignedIn() && (userId == getUserId() || isAdminOrSuperAdmin());
+    // --- User login counters ---
+    match /user_logins/{userId} {
+      allow create, update: if isSignedIn() &&
+        (userId == getUserId() || isAdminOrSuperAdmin());
 
-        // Read own counters or, for admins, any
-        allow read: if isSignedIn() && (userId == getUserId() || isAdminOrSuperAdmin());
+      allow read: if isSignedIn() &&
+        (userId == getUserId() || isAdminOrSuperAdmin());
 
-        // Delete only by super_admin (cleanup)
-        allow delete: if isSuperAdmin();
-      }
+      allow delete: if isSuperAdmin();
+    }
 
-      // --- Usernames collection - allow public read for signup availability checks ---
-      match /usernames/{username} {
-        // Allow anyone (including unauthenticated) to check availability
-        allow get, list: if true;
 
-        // Creation of a username document may only be performed by an authenticated user and must include uid match
-        allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+// --- Messages / Chat ---
+match /messages/{messageId} {
+  // Create: sender must be the authenticated user, participants must be exactly two distinct uids,
+  // convoId present, and timestamp present.
+  allow create: if isSignedIn()
+    && request.auth.uid == request.resource.data.from
+    && request.resource.data.participants is list
+    && request.resource.data.participants.size() == 2
+    && request.resource.data.participants.hasAll([request.resource.data.from, request.resource.data.to])
+    && request.resource.data.from != request.resource.data.to
+    && request.resource.data.convoId is string
+    && request.resource.data.timestamp is timestamp;
 
-        // Only super admin may update or delete username mappings
-        allow update, delete: if isSuperAdmin();
-      }
+  // Read: only participants (or admins) can read. Also allow queries that
+  // include an `array-contains` filter on `participants` for realtime
+  // subscriptions (the client uses `where('participants','array-contains', uid)`).
+  allow get, list: if isSignedIn() && (
+    request.auth.uid in resource.data.participants ||
+    isAdminOrSuperAdmin() ||
+    // allow list queries that filter by participants containing the caller
+    // (this makes the common `array-contains` subscription work)
+    (request.query != null && request.query.where('participants', 'array-contains', request.auth.uid))
+  );
 
-      // --- Fallback: deny everything else ---
-      match /{document=**} {
-        allow read, write: if false;
-      }
+  // Update: allow admins OR participants to change only small mutable fields.
+  // - Any participant may toggle `starred`.
+  // - Only the message recipient may set `read` to true.
+  allow update: if isSignedIn() && (
+    isAdminOrSuperAdmin() ||
+    (
+      request.auth.uid in resource.data.participants
+      && request.resource.data.participants == resource.data.participants
+      && request.resource.data.from == resource.data.from
+      && request.resource.data.to == resource.data.to
+      && (
+        // toggle starred
+        (request.resource.data.diff(resource.data).changedKeys().hasOnly(['starred']))
+        ||
+        // mark read: only recipient may mark their incoming message read
+        (
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(['read'])
+          && request.resource.data.read == true
+          && resource.data.to == request.auth.uid
+        )
+      )
+    )
+  );
+
+  // Delete: only super_admin or original sender
+  allow delete: if isSuperAdmin() || (isSignedIn() && resource.data.from == getUserId());
+}
+
+
+    // --- Usernames ---
+    match /usernames/{username} {
+      allow get, list: if true;
+      allow create: if request.auth != null &&
+        request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // --- Fallback deny ---
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
+}

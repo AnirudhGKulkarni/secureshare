@@ -13,6 +13,7 @@ const navigation = [
   { name: 'Admin Approvals', href: '/super-admin/approvals', icon: CheckSquare },
   { name: 'Audit Logs', href: '/super-admin/audit', icon: FileText },
   { name: 'All Users', href: '/super-admin/users', icon: Users },
+  { name: 'Settings', href: '/settings', icon: LayoutDashboard },
 ];
 
 export const SuperAdminSidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: boolean; onClose?: () => void }) => {

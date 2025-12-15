@@ -1,5 +1,6 @@
-import React from "react";
-import { LogOut, Settings } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { LogOut, Settings, Sun, Moon } from "lucide-react";
+// avatar removed by user request
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,31 @@ import {
 export const Navbar = ({ onToggleSidebar }: { onToggleSidebar?: () => void }) => {
   const { currentUser, profile, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('theme') : null;
+      if (stored === 'dark') return true;
+      if (stored === 'light') return false;
+      return typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : false;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+    } catch (e) {
+      // ignore in SSR or restricted env
+    }
+  }, [isDark]);
 
   const displayName =
     profile?.name ||
@@ -74,11 +100,21 @@ export const Navbar = ({ onToggleSidebar }: { onToggleSidebar?: () => void }) =>
           )}
         </div>
 
+        {/* Theme toggle moved to right side */}
+        <button
+          aria-label="Toggle theme"
+          title="Toggle theme"
+          onClick={() => setIsDark(!isDark)}
+          className="p-2 rounded-md hover:bg-border"
+        >
+          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </button>
+
         <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2">
-              <span className="hidden md:block text-sm font-medium">{displayName}</span>
-            </Button>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-3 p-1 rounded-md hover:bg-border">
+              <span className="hidden md:block text-sm font-medium text-foreground">{displayName}</span>
+            </button>
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-56">

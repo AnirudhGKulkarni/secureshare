@@ -1,22 +1,86 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { firestore } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useAuth } from '@/contexts/AuthContext';
+ 
 import { User, Lock, Bell, Moon } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Settings = () => {
-  const { user } = useAuth();
+  const { currentUser, profile, refreshProfile } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [securityAlerts, setSecurityAlerts] = useState(true);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+
+  useEffect(() => {
+    // initialize from profile if available
+    if (profile) {
+      setName(profile.firstName ? `${profile.firstName} ${profile.lastName || ''}` : (currentUser?.displayName || ''));
+      setRole(profile.role || '');
+      setEmailNotifications(Boolean((profile as any).emailNotifications ?? true));
+      setSecurityAlerts(Boolean((profile as any).securityAlerts ?? true));
+      setDarkMode(Boolean((profile as any).darkMode ?? false));
+    }
+  }, [profile, currentUser]);
+
+  useEffect(() => {
+    // listen to user doc for realtime updates
+    if (!currentUser?.uid) return;
+    const userRef = doc(firestore, 'users', currentUser.uid);
+    const unsub = onSnapshot(userRef, (snap) => {
+      const data = snap.data() || {};
+      setName(data.firstName ? `${data.firstName} ${data.lastName || ''}` : (currentUser.displayName || ''));
+      setRole(data.role || data.roleName || '');
+      setEmailNotifications(Boolean(data.emailNotifications ?? true));
+      setSecurityAlerts(Boolean(data.securityAlerts ?? true));
+      setDarkMode(Boolean(data.darkMode ?? false));
+    }, (e) => console.warn('users listener', e));
+
+    return () => unsub();
+  }, [currentUser]);
+
+  const updateUserSettings = async (updates: any) => {
+    if (!currentUser?.uid) {
+      toast.error('Not signed in');
+      return;
+    }
+    try {
+      await updateDoc(doc(firestore, 'users', currentUser.uid), updates);
+      toast.success('Settings saved');
+      if (refreshProfile) refreshProfile();
+    } catch (e) {
+      console.error('update user settings failed', e);
+      toast.error('Failed to save settings');
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!currentUser?.uid) {
+      toast.error('Not signed in');
+      return;
+    }
+    const [firstName, ...rest] = String(name || '').trim().split(' ');
+    const lastName = rest.join(' ');
+    try {
+      await updateDoc(doc(firestore, 'users', currentUser.uid), { firstName: firstName || '', lastName: lastName || '', displayName: name });
+      toast.success('Profile updated');
+      if (refreshProfile) refreshProfile();
+    } catch (e) {
+      console.error('save profile failed', e);
+      toast.error('Failed to save profile');
+    }
+  };
 
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,20 +134,20 @@ const Settings = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" defaultValue={user?.name} />
+                <Input id="name" value={name} onChange={(e) => setName((e.target as HTMLInputElement).value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue={user?.email} disabled />
+                <Input id="email" type="email" defaultValue={currentUser?.email} disabled />
                 <p className="text-xs text-muted-foreground">
                   Contact admin to change your email address
                 </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
-                <Input id="role" defaultValue={user?.role} disabled />
+                <Input id="role" value={role} disabled />
               </div>
-              <Button className="w-full">Save Changes</Button>
+              <Button className="w-full" onClick={handleSaveProfile}>Save Changes</Button>
             </CardContent>
           </Card>
 
@@ -163,7 +227,10 @@ const Settings = () => {
                 <Switch
                   id="email-notifications"
                   checked={emailNotifications}
-                  onCheckedChange={setEmailNotifications}
+                  onCheckedChange={(v: boolean) => {
+                    setEmailNotifications(!!v);
+                    updateUserSettings({ emailNotifications: !!v });
+                  }}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -178,7 +245,10 @@ const Settings = () => {
                 <Switch
                   id="security-alerts"
                   checked={securityAlerts}
-                  onCheckedChange={setSecurityAlerts}
+                  onCheckedChange={(v: boolean) => {
+                    setSecurityAlerts(!!v);
+                    updateUserSettings({ securityAlerts: !!v });
+                  }}
                 />
               </div>
             </CardContent>
@@ -209,7 +279,10 @@ const Settings = () => {
                 <Switch
                   id="dark-mode"
                   checked={darkMode}
-                  onCheckedChange={handleDarkModeToggle}
+                  onCheckedChange={(v: boolean) => {
+                    handleDarkModeToggle(!!v);
+                    updateUserSettings({ darkMode: !!v });
+                  }}
                 />
               </div>
             </CardContent>

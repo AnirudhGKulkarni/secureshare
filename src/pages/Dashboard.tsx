@@ -1,7 +1,7 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+// avatar removed by user request
 import { Users, Shield, AlertTriangle, TrendingUp, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 
@@ -127,10 +127,7 @@ const Dashboard = () => {
                 {recentUsers.map((user, i) => (
                   <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
                     <div className="relative">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src="" />
-                        <AvatarFallback className="text-xs">{user.avatar}</AvatarFallback>
-                      </Avatar>
+                      <div className="h-10 w-10" />
                       <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
                         user.status === 'online' ? 'bg-green-500' : 
                         user.status === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
