@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+// avatar removed per user request
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Search, Paperclip, MoreVertical, Send, Shield, Smile, Mic, Star, Download, Paintbrush } from 'lucide-react';
@@ -274,8 +274,8 @@ const Chat = () => {
       const isMe = m.from === currentUser?.uid;
       rows.push(
         <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-          <div className={`relative max-w-[70%] px-4 py-2 rounded-lg ${isMe ? 'bg-green-500 text-white' : 'bg-white text-gray-900'} shadow-sm`}>
-            <button onClick={() => toggleStar(m)} title="Star" className={`absolute -top-3 right-0 p-1 rounded ${m.starred ? 'text-yellow-400' : 'text-gray-300'}`}>
+          <div className={`relative max-w-[70%] px-4 py-2 rounded-lg ${isMe ? 'bg-green-500 text-white' : 'bg-white dark:bg-card text-gray-900 dark:text-foreground'} shadow-sm`}>
+            <button onClick={() => toggleStar(m)} title="Star" className={`absolute -top-3 right-0 p-1 rounded ${m.starred ? 'text-yellow-400' : 'text-muted-foreground'}`}>
               <Star className="h-4 w-4" />
             </button>
             {m.messageType === 'file' && m.file ? (
@@ -322,12 +322,10 @@ const Chat = () => {
                 <div className="divide-y">
                   {contacts.filter(c => (c.displayName || c.username || c.email || '').toLowerCase().includes(search.toLowerCase())).map((c) => (
                     <button key={c.uid} onClick={() => setSelected(c)} className={`w-full text-left p-3 flex items-center gap-3 hover:bg-gray-50 ${selected?.uid === c.uid ? 'bg-gray-100' : ''}`}>
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="text-xs">{(c.displayName || c.username || c.email || '').slice(0,2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
+                      <div className="h-10 w-10 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <div className="truncate font-medium">{c.displayName || c.username || c.email} {c.isMe ? <span className="text-xs text-muted-foreground">(self)</span> : null}</div>
+                          <div className="truncate font-medium text-foreground">{c.displayName || c.username || c.email} {c.isMe ? <span className="text-xs text-muted-foreground">(self)</span> : null}</div>
                         </div>
                         <div className="text-xs text-muted-foreground truncate">{c.title || ''}</div>
                       </div>
@@ -341,12 +339,10 @@ const Chat = () => {
             <div className="flex-1 flex flex-col">
               <div className="px-4 py-3 border-b flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="text-xs">{(selected?.displayName || selected?.email || '').slice(0,2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
+                  <div className="h-10 w-10 flex-shrink-0" />
                   <div>
-                    <div className="font-medium">{selected?.displayName || selected?.email || 'Select a chat'}</div>
-                    <div className="text-xs text-muted-foreground">{selected ? (selected.status || 'Active') : ''}</div>
+                    <div className="font-medium text-foreground">{selected?.displayName || selected?.email || 'Select a chat'}</div>
+                      <div className="text-xs text-muted-foreground">{selected ? (selected.status || 'Active') : ''}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 relative">

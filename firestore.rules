@@ -48,7 +48,8 @@ service cloud.firestore {
               'companyDomain',
               'domain',
               'loginAlerts',
-              'passwordUpdatedAt'
+              'passwordUpdatedAt',
+              'avatar'
             ])
         )
       );

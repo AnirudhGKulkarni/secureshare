@@ -130,7 +130,7 @@ const ClientPolicies: React.FC = () => {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Security Policies</h2>
+        <h2 className="text-2xl font-bold text-foreground">Security Policies</h2>
         <p className="text-sm text-muted-foreground">View data protection and access control policies</p>
       </div>
 

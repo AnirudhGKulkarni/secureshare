@@ -122,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email,
           role: safeRole,
           status: "pending",
-          createdAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
         },
         { merge: true }
       );
@@ -142,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         domain,
         role: safeRole,
         status: "pending",
-        createdAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
       });
     } catch (err) {
       console.warn("Full profile write failed during signup (non-blocking):", err);

@@ -1,7 +1,7 @@
 // src/pages/ClientProfile.tsx
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { getAuth, updatePassword } from "firebase/auth";
 import { firestore } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,7 @@ const ClientProfile: React.FC = () => {
           <CardTitle>Profile</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Avatar selection removed per request */}
           <form onSubmit={handleSave} className="space-y-4">
             <div>
               <Label>First name</Label>
