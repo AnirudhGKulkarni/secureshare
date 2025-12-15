@@ -273,7 +273,7 @@ const FrontPage: React.FC = () => {
         {/* Background video for the hero (blurred, non-interactive) - shown on all screen sizes */}
         <video
           ref={videoRef}
-          className={`absolute inset-0 w-full h-full object-cover object-center z-0 filter ${isSmallScreen ? 'blur-none brightness-95' : 'blur-sm brightness-95'}`}
+          className={`absolute inset-0 w-full h-full object-cover object-center z-0 filter ${isSmallScreen ? 'blur-none brightness-95' : 'blur-none brightness-95'}`}
           autoPlay
           muted
           loop

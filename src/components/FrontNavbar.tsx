@@ -8,9 +8,10 @@ import { auth } from "@/lib/firebase";
 interface FrontNavbarProps {
   isDarkMode?: boolean;
   onThemeToggle?: () => void;
+  minimal?: boolean;
 }
 
-const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeToggle }) => {
+const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeToggle, minimal = false }) => {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currentUser, profile } = useAuth();
@@ -92,9 +93,10 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
           </div>
 
           {/* Desktop Navigation Items */}
-          <div className={`hidden lg:flex space-x-1 transition-all duration-300 ${
-            isDarkMode ? "text-gray-300" : "text-gray-700"
-          }`}>
+          {!minimal && (
+            <div className={`hidden lg:flex space-x-1 transition-all duration-300 ${
+              isDarkMode ? "text-gray-300" : "text-gray-700"
+            }`}>
             {navItems.map((item) => {
               const isAnchor = item.href.startsWith('#');
               return (
@@ -167,13 +169,15 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
 
           {/* Right Side - Auth */}
           <div className="flex items-center gap-2 sm:gap-4">
 
             {/* Desktop Auth Buttons */}
-            <div className="hidden md:flex gap-2 sm:gap-3">
+            {!minimal && (
+              <div className="hidden md:flex gap-2 sm:gap-3">
               {dashboardRoute && (
                 <Link
                   to={dashboardRoute}
@@ -219,23 +223,26 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                   </Link>
                 </>
               )}
-            </div>
+              </div>
+            )}
 
             {/* Mobile Menu Button */}
-            <button 
-              className={`lg:hidden p-2 rounded-lg transition-all duration-300 ${
-                isDarkMode ? "hover:bg-gray-800" : "hover:bg-gray-100"
-              }`}
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle mobile menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            {!minimal && (
+              <button 
+                className={`lg:hidden p-2 rounded-lg transition-all duration-300 ${
+                  isDarkMode ? "hover:bg-gray-800" : "hover:bg-gray-100"
+                }`}
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle mobile menu"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            )}
           </div>
         </div>
 
         {/* Mobile Menu with smooth transition */}
-        {mobileMenuOpen && (
+        {!minimal && mobileMenuOpen && (
           <div className={`lg:hidden pb-4 border-t animate-slide-in-left ${
             isDarkMode ? "border-gray-800" : "border-gray-200"
           }`}>

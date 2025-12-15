@@ -53,21 +53,20 @@ const Checkout: React.FC = () => {
   };
 
   return (
-    <div className={`${bgClass} min-h-screen`}>
-      <FrontNavbar isDarkMode={isDarkMode} />
+      <div className={`${bgClass} min-h-screen`}>
+        <FrontNavbar isDarkMode={isDarkMode} minimal />
 
       {/* Small hero to match front page theming */}
       <section className="py-12 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">Checkout</h1>
-          <p className="text-sm text-gray-300">Confirm your plan and proceed to a secure payment gateway.</p>
+          <p className="text-sm text-gray-300">Confirm your plan and proceed to a secure payment.</p>
         </div>
       </section>
 
       <div className="max-w-6xl mx-auto py-8 px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className={`md:col-span-2 ${cardBg} rounded-2xl p-6 shadow-sm`}>
-            <h2 className="text-2xl font-bold mb-4">Checkout</h2>
             <p className="text-sm text-gray-300 mb-6">Review your selected plan, switch plans, and proceed to payment.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
@@ -88,9 +87,7 @@ const Checkout: React.FC = () => {
             </div>
 
             <div className={`${cardBg} rounded-lg p-4`}> 
-              <h3 className="font-semibold mb-2">Plan details</h3>
-              <div className="text-sm text-slate-700 mb-3">Selected plan: <span className="font-medium">{selectedPlan}</span></div>
-              <div className="text-sm text-gray-300 mb-3">Price: <span className="font-medium">{fmt(amount)}</span></div>
+              <h3 className="font-semibold mb-2">Plan Details</h3>
 
               <div className="mt-4">
                 <h4 className="font-semibold">Features</h4>
@@ -101,7 +98,7 @@ const Checkout: React.FC = () => {
                 </ul>
               </div>
               <div className="mt-4 pt-4 border-t border-gray-700">
-                <div className="text-sm text-gray-300 font-medium">{selectedPlan} plan validity: {validity.days} days</div>
+                <div className="text-sm text-gray-300 font-medium">{selectedPlan} Plan validity: {validity.days} days</div>
                 <div className="mt-2 text-sm text-gray-300">Start: <span className="text-gray-100 font-medium">{validity.start.toLocaleDateString()}</span></div>
                 <div className="text-sm text-gray-300">Expires: <span className="text-gray-100 font-medium">{validity.expiry.toLocaleDateString()}</span></div>
               </div>
