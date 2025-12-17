@@ -107,7 +107,7 @@ export const Navbar = ({ onToggleSidebar }: { onToggleSidebar?: () => void }) =>
           onClick={() => setIsDark(!isDark)}
           className="p-2 rounded-md hover:bg-border"
         >
-          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          {isDark ? <Sun className="h-5 w-5 text-foreground" /> : <Moon className="h-5 w-5 text-foreground" />}
         </button>
 
         <DropdownMenu>

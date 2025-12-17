@@ -52,6 +52,11 @@ const getRelativeTime = (ts: any): string => {
 
 export const ClientSidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: boolean; onClose?: () => void }) => {
   const { currentUser, profile } = useAuth();
+  const isClient = profile?.role === 'client';
+  const filteredNavigation = navigation.filter((item) => {
+    if (isClient && item.name.toLowerCase().includes('security')) return false;
+    return true;
+  });
   const activityRef = useRef<HTMLDivElement | null>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
@@ -115,7 +120,7 @@ export const ClientSidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: bo
       </div>
       
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navigation.map((item) => (
+        {filteredNavigation.map((item) => (
           <NavLink
             key={item.name}
             to={item.href}

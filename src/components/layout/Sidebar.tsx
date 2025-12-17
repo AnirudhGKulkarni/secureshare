@@ -12,6 +12,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -27,6 +28,15 @@ const navigation = [
 ];
 
 export const Sidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: boolean; onClose?: () => void }) => {
+  const { profile } = useAuth();
+  const isClient = profile?.role === 'client';
+
+  const filteredNavigation = navigation.filter((item) => {
+    // hide any security-related nav items for client users
+    if (isClient && item.name.toLowerCase().includes('security')) return false;
+    return true;
+  });
+
   const panel = (
     <div className="flex flex-col w-64 h-full bg-card border-r border-border">
       <div className="flex h-20 items-center px-0 border-b border-border">
@@ -37,7 +47,7 @@ export const Sidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: boolean;
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navigation.map((item) => (
+        {filteredNavigation.map((item) => (
           <NavLink
             key={item.name}
             to={item.href}

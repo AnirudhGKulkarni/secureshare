@@ -30,6 +30,28 @@ const ClientMessages: React.FC = () => {
   const bgInputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
+  const getInitials = (u: any) => {
+    const name = (u?.displayName || u?.username || u?.email || u?.uid || '').toString().trim();
+    if (!name) return '';
+    const parts = name.split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (name.includes('@')) {
+      const local = name.split('@')[0];
+      return (local[0] + (local[1] || '')).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const renderAvatar = (u: any, size = 'h-10 w-10') => {
+    const initials = getInitials(u);
+    if (u?.avatar) {
+      return <img src={u.avatar} alt={u.displayName || u.email || 'avatar'} className={`${size} rounded-full object-cover`} />;
+    }
+    return (
+      <div className={`${size} rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-white flex items-center justify-center font-semibold`}>{initials}</div>
+    );
+  };
+
   // load contacts (clients + admins) and subscribe to realtime message summaries
   useEffect(() => {
     if (!currentUser) return;
@@ -403,7 +425,7 @@ const ClientMessages: React.FC = () => {
                       onClick={() => setSelected(c)}
                       className={`w-full text-left p-3 flex items-center gap-3 group transform transition duration-150 ease-in-out hover:bg-gray-100 dark:hover:bg-blue-700/20 hover:translate-x-1 cursor-pointer ${selected?.uid === c.uid ? 'bg-gray-100 dark:bg-blue-600/40' : ''}`}
                     >
-                      <div className="h-10 w-10 flex-shrink-0" />
+                      <div className="h-10 w-10 flex-shrink-0">{renderAvatar(c)}</div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <div className="truncate font-medium text-foreground group-hover:opacity-95">{c.displayName || c.username || c.email} {c.isMe ? <span className="text-xs text-muted-foreground">(self)</span> : null}</div>
@@ -428,7 +450,7 @@ const ClientMessages: React.FC = () => {
             <div className="flex-1 flex flex-col">
               <div className="px-4 py-3 border-b flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 flex-shrink-0" />
+                  <div className="h-10 w-10 flex-shrink-0">{selected ? renderAvatar(selected) : null}</div>
                   <div>
                     <div className="font-medium text-foreground">{selected?.displayName || selected?.email || 'Select a chat'}</div>
                       <div className="text-xs text-muted-foreground">{selected ? (selected.status || 'Active') : ''}</div>

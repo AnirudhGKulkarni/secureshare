@@ -599,7 +599,10 @@ const FrontPage: React.FC = () => {
       </section>
 
       {/* Footer - Enhanced */}
-      <footer className={`footer-bg-image ${isDarkMode ? "bg-gray-900 border-t border-gray-800" : "bg-gray-900 border-t border-gray-800"} text-white py-16 px-6`}>
+      <footer 
+        className={`footer-bg-image ${isDarkMode ? "bg-gray-900 border-t border-gray-800 text-white" : "bg-white border-t border-gray-200 text-gray-900"} py-16 px-6`}
+        style={isDarkMode ? { backgroundImage: 'url(/footer%20bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' } : { backgroundImage: 'url(/footerlbg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}
+      >
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
           {/* Brand / About */}
           <div className="animate-fade-in" id="about">
@@ -607,7 +610,7 @@ const FrontPage: React.FC = () => {
              <img src="/lbg.png" alt="trustNshare light" className="h-12 md:h-16 object-contain block dark:hidden" />
              <img src="/bg.png" alt="trustNshare" className="h-12 md:h-16 object-contain hidden dark:block" />
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed">Enterprise-grade file sharing with military-grade encryption and complete compliance.</p>
+            <p className={`text-sm leading-relaxed ${isDarkMode ? "text-gray-400" : "text-gray-700"}`}>Enterprise-grade file sharing with military-grade encryption and complete compliance.</p>
             <div className="mt-4">
               <button
                 type="button"
@@ -622,25 +625,25 @@ const FrontPage: React.FC = () => {
           {/* Contact & Feedback */}
           <div className="flex flex-col gap-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-white font-semibold">Contact support</div>
-              <div className="text-gray-400">trustnshare1@gmail.com</div>
-              <div className="text-gray-400">91+1234567890</div>
+              <div className={`flex items-center gap-2 font-semibold ${isDarkMode ? "text-white" : "text-gray-900"}`}>Contact support</div>
+              <div className={isDarkMode ? "text-gray-400" : "text-gray-700"}>trustnshare1@gmail.com</div>
+              <div className={isDarkMode ? "text-gray-400" : "text-gray-700"}>+91 987654321</div>
             </div>
             {/* Removed duplicate middle Send Feedback button */}
           </div>
 
           {/* Company */}
           <div>
-            <h3 className="text-lg font-bold mb-6 text-white">Company</h3>
+            <h3 className={`text-lg font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"}`}>Company</h3>
             <ul className="space-y-3">
               <li>
                 <a
                   href="/ABOUT%20US.pdf"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-blue-400 transition-colors duration-300 flex items-center gap-2 group"
+                  className={`transition-colors duration-300 flex items-center gap-2 group ${isDarkMode ? "text-gray-400 hover:text-blue-400" : "text-gray-700 hover:text-blue-600"}`}
                 >
-                  <span className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                  <span className={`opacity-0 group-hover:opacity-100 transition-opacity ${isDarkMode ? "text-blue-400" : "text-blue-600"}`}>→</span>
                   About Us
                 </a>
               </li>
@@ -649,7 +652,7 @@ const FrontPage: React.FC = () => {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-gray-700 pt-8 mt-8">
+        <div className={`${isDarkMode ? "border-gray-700" : "border-gray-300"} pt-8 mt-8 border-t`}>
           <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
             {/* Social Links */}
             <div className="flex items-center gap-3 flex-wrap">
@@ -663,7 +666,7 @@ const FrontPage: React.FC = () => {
                   key={social.label}
                   href="#"
                   title={social.label}
-                  className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95"
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 ${isDarkMode ? "border-gray-600 text-gray-400 hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10" : "border-gray-400 text-gray-700 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-600/10"}`}
                 >
                   {social.icon}
                 </a>
@@ -673,7 +676,7 @@ const FrontPage: React.FC = () => {
                 href="/PRIVACY%20POLICY.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-blue-400 transition-colors duration-300"
+                className={`transition-colors duration-300 ${isDarkMode ? "text-gray-400 hover:text-blue-400" : "text-gray-700 hover:text-blue-600"}`}
               >
                 Privacy Policy
               </a>
@@ -681,7 +684,7 @@ const FrontPage: React.FC = () => {
                 href="/TERMS%20AND%20CONDITIONS.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-blue-400 transition-colors duration-300"
+                className={`transition-colors duration-300 ${isDarkMode ? "text-gray-400 hover:text-blue-400" : "text-gray-700 hover:text-blue-600"}`}
               >
                 Terms and Conditions
               </a>
@@ -690,7 +693,7 @@ const FrontPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className="rounded-full px-4 py-2 border border-gray-600 text-gray-300 hover:text-white hover:border-blue-400 hover:bg-blue-400/10 transition"
+                className={`rounded-full px-4 py-2 transition ${isDarkMode ? "border-gray-600 text-gray-300 hover:text-white hover:border-blue-400 hover:bg-blue-400/10" : "border-gray-400 text-gray-700 hover:text-gray-900 hover:border-blue-600 hover:bg-blue-600/10"}`}
                 aria-label="Back to top"
               >
                 Back to top
