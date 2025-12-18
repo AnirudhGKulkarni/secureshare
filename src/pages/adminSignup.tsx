@@ -25,7 +25,25 @@ const AdminSignup: React.FC = () => {
   const [email, setEmail] = useState("");
   const [googleDriveLink, setGoogleDriveLink] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme-preference');
+      if (saved === 'light' || saved === 'dark') {
+        return saved === 'dark';
+      }
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
   const navigate = useNavigate();
+
+  // Apply theme to document root
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', isDarkMode);
+      document.documentElement.classList.toggle('light', !isDarkMode);
+    }
+  }, [isDarkMode]);
     // Autofill from signed-up user profile (except Drive link)
     useEffect(() => {
       const fillFromProfile = async () => {
@@ -158,13 +176,25 @@ const AdminSignup: React.FC = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 p-6 text-gray-100">
+    <div className={`relative flex min-h-screen items-center justify-center p-6 transition-colors duration-300 ${
+      isDarkMode
+        ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 text-gray-100"
+        : "bg-gradient-to-br from-blue-50 via-white to-gray-50 text-gray-900"
+    }`}>
       {/* Back to Home */}
-      <Link to="/" className="absolute top-4 left-4 z-50 inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-900/70 px-3 py-2 text-sm hover:bg-gray-800 hover:border-blue-500 transition-colors">
+      <Link to="/" className={`absolute top-4 left-4 z-50 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+        isDarkMode
+          ? "border-gray-700 bg-gray-900/70 hover:bg-gray-800 hover:border-blue-500 text-gray-100"
+          : "border-gray-300 bg-white/70 hover:bg-blue-50 hover:border-blue-600 text-gray-900"
+      }`}>
         <ArrowLeft className="w-4 h-4" />
         Home
       </Link>
-      <Card className="w-full max-w-lg shadow-elevated bg-gray-900 text-gray-100 border border-gray-800">
+      <Card className={`w-full max-w-lg shadow-elevated border transition-colors duration-300 ${
+        isDarkMode
+          ? "bg-gray-900 text-gray-100 border-gray-800"
+          : "bg-white text-gray-900 border-gray-200"
+      }`}>
         <CardHeader className="space-y-4 text-center">
           <div className="mx-auto flex items-center gap-3">
             <img src="/lbg.png" alt="trustNshare light" className="h-12 md:h-16 object-contain block dark:hidden" />
@@ -182,39 +212,55 @@ const AdminSignup: React.FC = () => {
 
         <CardContent>
           {/* Prerequisite note with link to Login */}
-          <div className="mb-4 p-3 rounded-md border border-blue-800/50 bg-blue-950/30 text-sm">
-            <p className="text-blue-200">
+          <div className={`mb-4 p-3 rounded-md border text-sm ${
+            isDarkMode
+              ? "border-blue-800/50 bg-blue-950/30 text-blue-200"
+              : "border-blue-300/50 bg-blue-50/50 text-blue-800"
+          }`}>
+            <p>
               <strong>Note:</strong> Before proceeding with the registration, you must have a registered username and password. Please create one via the signup page if you haven't already done so.
               {" "}
-              <Link to="/login" className="underline text-primary hover:text-accent-foreground ml-1">Go to Login/Signup</Link>
+              <Link to="/login" className={`underline ml-1 ${isDarkMode ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"}`}>Go to Login/Signup</Link>
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>First name</Label>
+                <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>First name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input className="pl-10 bg-background text-foreground border-border placeholder:text-muted-foreground" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                  <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                  <Input className={`pl-10 border rounded-md transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
+                      : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
+                  }`} value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                 </div>
               </div>
               <div>
-                <Label>Last name</Label>
+                <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Last name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input className="pl-10 bg-background text-foreground border-border placeholder:text-muted-foreground" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                  <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                  <Input className={`pl-10 border rounded-md transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
+                      : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
+                  }`} value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                 </div>
               </div>
             </div>
 
             {/* Registered Username directly below Last name */}
             <div>
-              <Label>Your registered username</Label>
+              <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Your registered username</Label>
               <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
                 <Input
-                  className="pl-10 bg-background text-foreground border-border placeholder:text-muted-foreground"
+                  className={`pl-10 border rounded-md transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
+                      : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
+                  }`}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="username used during signup"
@@ -225,21 +271,29 @@ const AdminSignup: React.FC = () => {
 
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <Label>Name of your company</Label>
+                <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Name of your company</Label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input className="pl-10 bg-background text-foreground border-border placeholder:text-muted-foreground" value={company} onChange={(e) => setCompany(e.target.value)} required />
+                  <Briefcase className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                  <Input className={`pl-10 border rounded-md transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
+                      : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
+                  }`} value={company} onChange={(e) => setCompany(e.target.value)} required />
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <Label>Functional category</Label>
+                <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Functional category</Label>
                 <select
                   value={domain}
                   onChange={(e) => setDomain(e.target.value as typeof domainOptions[number])}
-                  className="w-full rounded-md border px-3 py-2 bg-background text-foreground border-border"
+                  className={`w-full rounded-md border px-3 py-2 transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-900 text-gray-100 border-gray-700"
+                      : "bg-white text-gray-900 border-gray-300"
+                  }`}
                 >
                   {domainOptions.map((d) => (
                     <option key={d} value={d}>
@@ -252,10 +306,14 @@ const AdminSignup: React.FC = () => {
 
             {domain === "Other" && (
               <div>
-                <Label>Specify functional category</Label>
+                <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Specify functional category</Label>
                 <div className="relative">
                   <Input
-                    className="pl-3 bg-background text-foreground border-border placeholder:text-muted-foreground"
+                    className={`pl-3 border rounded-md transition-colors ${
+                      isDarkMode
+                        ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
+                        : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
+                    }`}
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value)}
                     placeholder="Enter functional category"
@@ -265,23 +323,31 @@ const AdminSignup: React.FC = () => {
             )}
 
             <div>
-              <Label>Email</Label>
+              <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input className="pl-10 bg-background text-foreground border-border placeholder:text-muted-foreground" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Mail className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                <Input className={`pl-10 border rounded-md transition-colors ${
+                  isDarkMode
+                    ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
+                    : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
+                }`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between">
-                <Label>Google Drive link for verification documents</Label>
-                <a href="/List of Documents that are Accepted.pdf" target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline hover:text-accent-foreground">
+                <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Google Drive link for verification documents</Label>
+                <a href="/List of Documents that are Accepted.pdf" target="_blank" rel="noopener noreferrer" className={`text-xs underline ${isDarkMode ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"}`}>
                   View Accepted Documents List
                 </a>
               </div>
               <div className="relative">
                 <Input
-                  className="bg-background text-foreground border-border placeholder:text-muted-foreground"
+                  className={`border rounded-md transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
+                      : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
+                  }`}
                   type="url"
                   value={googleDriveLink}
                   onChange={(e) => setGoogleDriveLink(e.target.value)}
@@ -289,8 +355,12 @@ const AdminSignup: React.FC = () => {
                   required
                 />
               </div>
-              <div className="mt-2 p-3 bg-blue-950/30 border border-blue-800/50 rounded-md">
-                <p className="text-xs text-blue-200">
+              <div className={`mt-2 p-3 border rounded-md ${
+                isDarkMode
+                  ? "bg-blue-950/30 border-blue-800/50"
+                  : "bg-blue-50/50 border-blue-300/50"
+              }`}>
+                <p className={`text-xs ${isDarkMode ? "text-blue-200" : "text-blue-800"}`}>
                   <strong>Instructions:</strong>
                   <br />1. Upload your verification documents to Google Drive
                   <br />2. Set sharing permissions to "Anyone with the link can view"
@@ -300,7 +370,7 @@ const AdminSignup: React.FC = () => {
               </div>
             </div>
 
-            <Button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90 transition-opacity shadow-md">
+            <Button type="submit" disabled={isLoading} className="w-full text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95" style={{ backgroundColor: isDarkMode ? '#0F5080' : '#113738' }}>
               {isLoading ? "Submitting..." : "Submit for Approval"}
             </Button>
 

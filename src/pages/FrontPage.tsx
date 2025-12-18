@@ -54,18 +54,30 @@ const trustedPartners = [
 
 const FrontPage: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentHeroFeature, setCurrentHeroFeature] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme-preference');
+      if (saved === 'light' || saved === 'dark') {
+        return saved === 'dark';
+      }
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     return false;
   });
+
+  const heroFeatures = [
+    "Protect your sensitive data with military-grade encryption, granular access controls, and complete audit visibility.",
+    "Share files securely with end-to-end encryption and track every access with detailed audit logs.",
+    "Control permissions at the file level and revoke access anytime with real-time compliance reporting.",
+  ];
 
   // Ensure the correct class is set on the root element for CSS background switching
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.classList.toggle('dark', isDarkMode);
       document.documentElement.classList.toggle('light', !isDarkMode);
+      localStorage.setItem('theme-preference', isDarkMode ? 'dark' : 'light');
     }
   }, [isDarkMode]);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -183,6 +195,14 @@ const FrontPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto-advance hero features every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentHeroFeature((prev) => (prev + 1) % heroFeatures.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [heroFeatures.length]);
+
   // Video availability & small-screen detection for fallback
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videoPlayable, setVideoPlayable] = useState(false);
@@ -206,7 +226,7 @@ const FrontPage: React.FC = () => {
         return;
       }
       const base = vw / a;
-      const desired = Math.min(Math.max(base, 360), Math.min(900, Math.floor(vh * 0.7)));
+      const desired = Math.min(Math.max(base, 360), Math.min(1200, Math.floor(vh * 0.9)));
       setHeroHeight(desired);
     } catch (e) {
       // ignore
@@ -336,10 +356,28 @@ const FrontPage: React.FC = () => {
               <h1 className={`text-2xl md:text-6xl font-bold mb-6 leading-tight ${isDarkMode ? 'text-white' : ''}`} style={isDarkMode ? {} : {color: '#0C2647', textShadow: '0 0 20px rgba(255,255,255,0.9), 0 0 40px rgba(255,255,255,0.7), 0 0 60px rgba(255,255,255,0.5)'}}>
                 Secure File Sharing for Modern Businesses
               </h1>
-              <p className={`text-base md:text-xl opacity-90 mb-8 animate-fade-in font-semibold ${isDarkMode ? 'text-white' : ''}`} style={isDarkMode ? {} : {color: '#0C2647', textShadow: '0 0 15px rgba(255,255,255,0.9), 0 0 30px rgba(255,255,255,0.6), 0 0 45px rgba(255,255,255,0.4)'}}>
-                Protect your sensitive data with military-grade encryption, granular access controls, and complete audit visibility.
-              </p>
-        
+              <div className="relative h-24 md:h-32 overflow-hidden">
+                <p 
+                  key={`feature-${currentHeroFeature}`}
+                  className={`text-base md:text-xl opacity-90 mb-8 font-semibold transition-all duration-500 ${isDarkMode ? 'text-white' : ''} animate-fade-in`}
+                  style={isDarkMode ? {} : {color: '#0C2647', textShadow: '0 0 15px rgba(255,255,255,0.9), 0 0 30px rgba(255,255,255,0.6), 0 0 45px rgba(255,255,255,0.4)'}}
+                >
+                  {heroFeatures[currentHeroFeature]}
+                </p>
+              </div>
+              {/* Feature indicators */}
+              <div className={`flex gap-2 transition-opacity duration-300 ${isDarkMode ? 'opacity-60' : 'opacity-70'}`}>
+                {heroFeatures.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      idx === currentHeroFeature 
+                        ? `${isDarkMode ? 'bg-white' : 'bg-blue-600'} w-8` 
+                        : `${isDarkMode ? 'bg-white/30' : 'bg-blue-300'} w-2`
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
             {/* Right-side feature box removed per request */}
           </div>

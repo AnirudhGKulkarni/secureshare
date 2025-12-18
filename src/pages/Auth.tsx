@@ -16,6 +16,24 @@ const domainOptions = ["IT", "Logistics", "HR", "Finance", "Retail", "Healthcare
 const Auth: React.FC = () => {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme-preference');
+      if (saved === 'light' || saved === 'dark') {
+        return saved === 'dark';
+      }
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  // Apply theme to document root
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', isDarkMode);
+      document.documentElement.classList.toggle('light', !isDarkMode);
+    }
+  }, [isDarkMode]);
 
   // shared login fields
   const [email, setEmail] = useState("");
@@ -473,7 +491,11 @@ const Auth: React.FC = () => {
   };
 
   return (
-    <div className="relative flex min-h-screen w-screen items-stretch bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800 text-gray-100">
+    <div className={`relative flex min-h-screen w-screen items-stretch text-gray-100 transition-colors duration-300 ${
+      isDarkMode 
+        ? "bg-gradient-to-br from-gray-950 via-gray-900 to-gray-800" 
+        : "bg-gradient-to-br from-blue-50 via-white to-gray-50 text-gray-900"
+    }`}>
       {/* SVG sharpen filter for carousel images */}
       <svg style={{ position: "absolute", width: 0, height: 0 }} aria-hidden="true">
         <filter id="sharpen" x="0" y="0" width="100%" height="100%">
@@ -481,12 +503,20 @@ const Auth: React.FC = () => {
         </filter>
       </svg>
       {/* Back to Home */}
-      <Link to="/" className="absolute top-4 left-4 z-50 inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-900/70 px-3 py-2 text-sm hover:bg-gray-800 hover:border-blue-500 transition-colors">
+      <Link to="/" className={`absolute top-4 left-4 z-50 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+        isDarkMode 
+          ? "border-gray-700 bg-gray-900/70 hover:bg-gray-800 hover:border-blue-500 text-gray-100"
+          : "border-gray-300 bg-white/70 hover:bg-blue-50 hover:border-blue-600 text-gray-900"
+      }`}>
         <ArrowLeft className="w-4 h-4" />
         Home
       </Link>
 
-      <Card className="w-full max-w-none min-h-screen md:rounded-xl md:shadow-elevated rounded-none shadow-none bg-gray-900 text-gray-100 border border-gray-800">
+      <Card className={`w-full max-w-none min-h-screen md:rounded-xl md:shadow-elevated rounded-none shadow-none border transition-colors duration-300 ${
+        isDarkMode 
+          ? "bg-gray-900 text-gray-100 border-gray-800"
+          : "bg-white text-gray-900 border-gray-200"
+      }`}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
           <div className="p-6 md:p-10 flex flex-col justify-center items-center">
             <div className="w-full max-w-md">
@@ -496,18 +526,30 @@ const Auth: React.FC = () => {
                 <img src="/bg.png" alt="trustNshare" className="h-12 md:h-16 object-contain hidden dark:block" />
               </div>
               <div className="pt-2">
-                <div className="flex items-center justify-center gap-2 rounded-full bg-gray-800/80 border border-gray-700 p-1 w-max mx-auto">
+                <div className={`flex items-center justify-center gap-2 rounded-full border p-1 w-max mx-auto transition-colors ${
+                  isDarkMode 
+                    ? "bg-gray-800/80 border-gray-700" 
+                    : "bg-gray-100/80 border-gray-300"
+                }`}>
                   <button
                     type="button"
                     onClick={() => { setMode('signin'); setShowWelcomeBack(false); }}
-                    className={`px-4 py-1 text-sm rounded-full transition-colors ${mode === 'signin' ? 'bg-gray-900 text-gray-100 border border-blue-500/40 shadow-sm' : 'text-gray-300 hover:bg-gray-800'}`}
+                    className={`px-4 py-1 text-sm rounded-full transition-colors ${
+                      mode === 'signin' 
+                        ? isDarkMode ? 'bg-gray-900 text-gray-100 border border-blue-500/40 shadow-sm' : 'bg-white text-gray-900 border border-blue-500/40 shadow-sm'
+                        : isDarkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-600 hover:bg-gray-200'
+                    }`}
                   >
                     Login
                   </button>
                   <button
                     type="button"
                     onClick={() => setMode('signup')}
-                    className={`px-4 py-1 text-sm rounded-full transition-colors ${mode === 'signup' ? 'bg-gray-900 text-gray-100 border border-blue-500/40 shadow-sm' : 'text-gray-300 hover:bg-gray-800'}`}
+                    className={`px-4 py-1 text-sm rounded-full transition-colors ${
+                      mode === 'signup' 
+                        ? isDarkMode ? 'bg-gray-900 text-gray-100 border border-blue-500/40 shadow-sm' : 'bg-white text-gray-900 border border-blue-500/40 shadow-sm'
+                        : isDarkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-600 hover:bg-gray-200'
+                    }`}
                   >
                     Signup
                   </button>
@@ -526,31 +568,39 @@ const Auth: React.FC = () => {
               {mode === 'signin' ? (
                 <form onSubmit={(e) => { handleLogin(e); }} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input id="email" type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500" required />
+                      <Mail className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                      <Input id="email" type="email" placeholder="Enter your valid email" value={email} onChange={(e) => setEmail(e.target.value)} className={`pl-10 border rounded-md transition-colors ${
+                        isDarkMode
+                          ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-500"
+                          : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                      }`} required />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password" className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Password</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Lock className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="pl-10 pr-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500"
+                        className={`pl-10 pr-10 border rounded-md transition-colors ${
+                          isDarkMode
+                            ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-500"
+                            : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                        }`}
                         required
                       />
                       <button
                         type="button"
                         aria-label={showPassword ? "Hide password" : "Show password"}
                         onClick={() => setShowPassword((s) => !s)}
-                        className="absolute right-3 top-3 flex items-center text-gray-400"
+                        className={`absolute right-3 top-3 flex items-center ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -566,7 +616,7 @@ const Auth: React.FC = () => {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90 transition-opacity shadow-md" disabled={isLoading}>
+                  <Button type="submit" className="w-full text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95" style={{ backgroundColor: isDarkMode ? '#0F5080' : '#113738' }} disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Login"}
                   </Button>
 
@@ -594,28 +644,42 @@ const Auth: React.FC = () => {
                 <form onSubmit={handleSignup} className="grid grid-cols-1 gap-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label>First name</Label>
+                      <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>First name</Label>
                       <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                        <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                        <Input className={`pl-10 border rounded-md transition-colors ${
+                          isDarkMode
+                            ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-500"
+                            : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                        }`} value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                       </div>
                     </div>
                     <div>
-                      <Label>Last name</Label>
+                      <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Last name</Label>
                       <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                        <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                        <Input className={`pl-10 border rounded-md transition-colors ${
+                          isDarkMode
+                            ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-500"
+                            : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                        }`} value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                       </div>
                     </div>
                   </div>
 
                   {/* Username field directly under Last name */}
                   <div>
-                    <Label>Username</Label>
+                    <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Username</Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
                       <Input
-                        className={`pl-10 bg-gray-900 border text-gray-100 placeholder-gray-500 ${usernameStatus === 'available' ? 'border-green-400' : usernameStatus === 'taken' ? 'border-red-500' : 'border-gray-700'}`}
+                        className={`pl-10 border rounded-md transition-colors ${
+                          usernameStatus === 'available' 
+                            ? 'border-green-400' 
+                            : usernameStatus === 'taken' 
+                            ? 'border-red-500' 
+                            : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode ? "bg-gray-900 text-gray-100 placeholder-gray-500" : "bg-white text-gray-900 placeholder-gray-400"}`}
                         value={username}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -663,20 +727,28 @@ const Auth: React.FC = () => {
                   </div>
 
                   <div>
-                    <Label>Name of your company</Label>
+                    <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Name of your company</Label>
                     <div className="relative">
-                      <Briefcase className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500" value={company} onChange={(e) => setCompany(e.target.value)} />
+                      <Briefcase className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                      <Input className={`pl-10 border rounded-md transition-colors ${
+                        isDarkMode
+                          ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-500"
+                          : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                      }`} value={company} onChange={(e) => setCompany(e.target.value)} />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <Label>Functional category</Label>
+                      <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Functional category</Label>
                       <select
                         value={domain}
                         onChange={(e) => setDomain(e.target.value)}
-                        className="w-full rounded-md border px-3 py-2 bg-gray-900 border-gray-700 text-gray-100"
+                        className={`w-full rounded-md border px-3 py-2 transition-colors ${
+                          isDarkMode
+                            ? "bg-gray-900 border-gray-700 text-gray-100"
+                            : "bg-white border-gray-300 text-gray-900"
+                        }`}
                         required
                       >
                         <option value="" disabled>Select</option>
@@ -689,54 +761,70 @@ const Auth: React.FC = () => {
 
                   {domain === "Other" && (
                     <div>
-                      <Label>Specify functional category</Label>
+                      <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Specify functional category</Label>
                       <div className="relative">
-                        <Input className="pl-3 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Enter functional category" />
+                        <Input className={`pl-3 border rounded-md transition-colors ${
+                          isDarkMode
+                            ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-500"
+                            : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                        }`} value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Enter functional category" />
                       </div>
                     </div>
                   )}
 
                   <div>
-                    <Label>Email</Label>
+                    <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input className="pl-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                      <Mail className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                      <Input className={`pl-10 border rounded-md transition-colors ${
+                        isDarkMode
+                          ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-500"
+                          : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                      }`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label>Password</Label>
+                      <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Password</Label>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Lock className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
                         <Input
-                          className="pl-10 pr-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500"
+                          className={`pl-10 pr-10 border rounded-md transition-colors ${
+                            isDarkMode
+                              ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-500"
+                              : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                          }`}
                           type={showPassword ? "text" : "password"}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           required
                         />
-                        <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((s) => !s)} className="absolute right-3 top-3 flex items-center text-gray-400">
+                        <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((s) => !s)} className={`absolute right-3 top-3 flex items-center ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
                     </div>
                     <div>
-                      <Label>Confirm Password</Label>
+                      <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Confirm Password</Label>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input className="pl-10 pr-10 bg-gray-900 border border-gray-700 text-gray-100 placeholder-gray-500" type={showPassword ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+                        <Lock className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
+                        <Input className={`pl-10 pr-10 border rounded-md transition-colors ${
+                          isDarkMode
+                            ? "bg-gray-900 border-gray-700 text-gray-100 placeholder-gray-500"
+                            : "bg-white border-gray-300 text-gray-900 placeholder-gray-400"
+                        }`} type={showPassword ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="text-sm">
-                      <button type="button" onClick={() => setMode('signin')} className="underline hover:text-primary">Already have an account?</button>
+                    <div className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+                      <button type="button" onClick={() => setMode('signin')} className={`underline ${isDarkMode ? "hover:text-blue-400" : "hover:text-blue-600"}`}>Already have an account?</button>
                     </div>
                   </div>
 
-                  <Button type="submit" disabled={isLoading || usernameStatus !== 'available'} className="w-full bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90 transition-opacity shadow-md">
+                  <Button type="submit" disabled={isLoading} className="w-full text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95" style={{ backgroundColor: isDarkMode ? '#0F5080' : '#113738' }}>
                     {isLoading ? "Creating account..." : "Sign Up"}
                   </Button>
 
@@ -769,9 +857,17 @@ const Auth: React.FC = () => {
             </div>
           </div>
 
-          <div className="hidden lg:flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 p-6 lg:sticky lg:top-0 lg:h-screen">
+          <div className={`hidden lg:flex items-center justify-center p-6 lg:sticky lg:top-0 lg:h-screen transition-colors duration-300 ${
+            isDarkMode
+              ? "bg-gradient-to-br from-gray-900 to-gray-800"
+              : "bg-gradient-to-br from-blue-100 to-gray-100"
+          }`}>
             <div className="p-4 md:p-8 w-full flex items-center justify-center h-full">
-              <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-lg p-6 flex items-center justify-center w-full h-full max-w-5xl">
+              <div className={`border rounded-xl shadow-lg p-6 flex items-center justify-center w-full h-full max-w-5xl transition-colors duration-300 ${
+                isDarkMode
+                  ? "bg-gray-900 border-gray-800"
+                  : "bg-white border-gray-300"
+              }`}>
                 <div className="w-full h-full flex items-center justify-center relative">
                   <div className="overflow-hidden rounded-md w-full h-full flex items-center justify-center">
                     <div className="w-full h-full flex items-center justify-center">

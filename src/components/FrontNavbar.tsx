@@ -183,7 +183,8 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
               {dashboardRoute && (
                 <Link
                   to={dashboardRoute}
-                  className="rounded-lg px-4 py-2 text-sm font-medium bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 hover:from-emerald-700 hover:to-emerald-800"
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95"
+                  style={{ backgroundColor: '#113738' }}
                 >
                   Dashboard
                 </Link>
@@ -209,17 +210,15 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                 <>
                   <Link
                     to="/login"
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-300 transform hover:scale-105 active:scale-95 ${
-                      isDarkMode
-                        ? "text-white border border-gray-600 hover:border-blue-400 hover:text-blue-400 hover:bg-gray-800/50"
-                        : "text-gray-700 border border-gray-300 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50"
-                    }`}
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95"
+                    style={{ backgroundColor: '#113738' }}
                   >
                     Login/Signup
                   </Link>
                   <Link
                     to="/admin-signup"
-                    className="rounded-lg px-4 py-2 text-sm font-medium bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 hover:from-blue-700 hover:to-blue-800"
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95"
+                    style={{ backgroundColor: '#113738' }}
                   >
                     Admin Signup
                   </Link>
