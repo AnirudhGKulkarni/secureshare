@@ -224,16 +224,6 @@ const Settings = () => {
             <CardContent>
               <form onSubmit={handlePasswordChange} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="current-password">Current Password</Label>
-                  <Input
-                    id="current-password"
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="new-password">New Password</Label>
                   <Input
                     id="new-password"
@@ -260,57 +250,59 @@ const Settings = () => {
             </CardContent>
           </Card>
 
-          <Card className="shadow-card">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Bell className="h-5 w-5 text-primary" />
+          {profile?.role !== 'super_admin' && (
+            <Card className="shadow-card">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Bell className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Notifications</CardTitle>
+                    <CardDescription>Manage notification preferences</CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle>Notifications</CardTitle>
-                  <CardDescription>Manage notification preferences</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="email-notifications" className="text-base">
+                      Email Notifications
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receive updates via email
+                    </p>
+                  </div>
+                  <Switch
+                    id="email-notifications"
+                    checked={emailNotifications}
+                    onCheckedChange={(v: boolean) => {
+                      setEmailNotifications(!!v);
+                      updateUserSettings({ emailNotifications: !!v });
+                    }}
+                  />
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications" className="text-base">
-                    Email Notifications
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Receive updates via email
-                  </p>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="security-alerts" className="text-base">
+                      Security Alerts
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Get notified about security events
+                    </p>
+                  </div>
+                  <Switch
+                    id="security-alerts"
+                    checked={securityAlerts}
+                    onCheckedChange={(v: boolean) => {
+                      setSecurityAlerts(!!v);
+                      updateUserSettings({ securityAlerts: !!v });
+                    }}
+                  />
                 </div>
-                <Switch
-                  id="email-notifications"
-                  checked={emailNotifications}
-                  onCheckedChange={(v: boolean) => {
-                    setEmailNotifications(!!v);
-                    updateUserSettings({ emailNotifications: !!v });
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="security-alerts" className="text-base">
-                    Security Alerts
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Get notified about security events
-                  </p>
-                </div>
-                <Switch
-                  id="security-alerts"
-                  checked={securityAlerts}
-                  onCheckedChange={(v: boolean) => {
-                    setSecurityAlerts(!!v);
-                    updateUserSettings({ securityAlerts: !!v });
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {profile?.role === 'super_admin' && (
             <Card className="shadow-card">
@@ -369,39 +361,41 @@ const Settings = () => {
             </Card>
           )}
 
-          <Card className="shadow-card">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Moon className="h-5 w-5 text-primary" />
+          {profile?.role !== 'super_admin' && (
+            <Card className="shadow-card">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Moon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Appearance</CardTitle>
+                    <CardDescription>Customize how the app looks</CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle>Appearance</CardTitle>
-                  <CardDescription>Customize how the app looks</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="dark-mode" className="text-base">
+                      Dark Mode
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Toggle dark theme
+                    </p>
+                  </div>
+                  <Switch
+                    id="dark-mode"
+                    checked={darkMode}
+                    onCheckedChange={(v: boolean) => {
+                      handleDarkModeToggle(!!v);
+                      updateUserSettings({ darkMode: !!v });
+                    }}
+                  />
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="dark-mode" className="text-base">
-                    Dark Mode
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Toggle dark theme
-                  </p>
-                </div>
-                <Switch
-                  id="dark-mode"
-                  checked={darkMode}
-                  onCheckedChange={(v: boolean) => {
-                    handleDarkModeToggle(!!v);
-                    updateUserSettings({ darkMode: !!v });
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </DashboardLayout>
