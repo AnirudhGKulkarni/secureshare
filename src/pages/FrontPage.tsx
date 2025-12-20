@@ -676,7 +676,7 @@ const FrontPage: React.FC = () => {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="/ABOUT%20US.pdf"
+                  href="/ABOUT%20US.pdf?v=20251220"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`transition-colors duration-300 flex items-center gap-2 group ${isDarkMode ? "text-gray-400 hover:text-blue-400" : "text-gray-700 hover:text-blue-600"}`}
@@ -711,7 +711,7 @@ const FrontPage: React.FC = () => {
               ))}
               {/* Policy Links */}
               <a
-                href="/PRIVACY%20POLICY.pdf"
+                href="/PRIVACY%20POLICY.pdf?v=20251220"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`transition-colors duration-300 ${isDarkMode ? "text-gray-400 hover:text-blue-400" : "text-gray-700 hover:text-blue-600"}`}
@@ -719,7 +719,7 @@ const FrontPage: React.FC = () => {
                 Privacy Policy
               </a>
               <a
-                href="/TERMS%20AND%20CONDITIONS.pdf"
+                href="/TERMS%20AND%20CONDITIONS.pdf?v=20251220"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`transition-colors duration-300 ${isDarkMode ? "text-gray-400 hover:text-blue-400" : "text-gray-700 hover:text-blue-600"}`}

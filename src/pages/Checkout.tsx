@@ -146,7 +146,7 @@ const Checkout: React.FC = () => {
             <h3 className="text-lg font-bold mb-6 text-white">Company</h3>
             <ul className="space-y-3">
               <li>
-                <a href="/ABOUT%20US.pdf" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors duration-300 flex items-center gap-2 group">
+                <a href="/ABOUT%20US.pdf?v=20251220" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors duration-300 flex items-center gap-2 group">
                   <span className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                   About Us
                 </a>
@@ -162,8 +162,8 @@ const Checkout: React.FC = () => {
               <a href="#" title="LinkedIn" className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95">in</a>
               <a href="#" title="Twitter" className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95">𝕏</a>
               <a href="#" title="Instagram" className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95">📷</a>
-              <a href="/PRIVACY%20POLICY.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors duration-300">Privacy Policy</a>
-              <a href="/TERMS%20AND%20CONDITIONS.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors duration-300">Terms and Conditions</a>
+              <a href="/PRIVACY%20POLICY.pdf?v=20251220" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors duration-300">Privacy Policy</a>
+              <a href="/TERMS%20AND%20CONDITIONS.pdf?v=20251220" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors duration-300">Terms and Conditions</a>
             </div>
             <div className="flex items-center gap-4">
               <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="rounded-full px-4 py-2 border border-gray-600 text-gray-300 hover:text-white hover:border-blue-400 hover:bg-blue-400/10 transition">Back to top</button>

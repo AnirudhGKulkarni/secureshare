@@ -33,7 +33,7 @@ export const DashboardFooter = () => {
             <ul className="space-y-2">
               <li>
                 <a
-                  href="/ABOUT%20US.pdf"
+                  href="/ABOUT%20US.pdf?v=20251220"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm hover:text-primary transition-colors duration-300"
@@ -43,7 +43,7 @@ export const DashboardFooter = () => {
               </li>
               <li>
                 <a
-                  href="/PRIVACY%20POLICY.pdf"
+                  href="/PRIVACY%20POLICY.pdf?v=20251220"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm hover:text-primary transition-colors duration-300"
@@ -53,7 +53,7 @@ export const DashboardFooter = () => {
               </li>
               <li>
                 <a
-                  href="/TERMS%20AND%20CONDITIONS.pdf"
+                  href="/TERMS%20AND%20CONDITIONS.pdf?v=20251220"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm hover:text-primary transition-colors duration-300"

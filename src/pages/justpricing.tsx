@@ -167,7 +167,7 @@ const JustPricing: React.FC = () => {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="/ABOUT%20US.pdf"
+                  href="/ABOUT%20US.pdf?v=20251220"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-blue-400 transition-colors duration-300 flex items-center gap-2 group"
@@ -202,7 +202,7 @@ const JustPricing: React.FC = () => {
               ))}
               {/* Policy Links */}
               <a
-                href="/PRIVACY%20POLICY.pdf"
+                href="/PRIVACY%20POLICY.pdf?v=20251220"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-blue-400 transition-colors duration-300"
@@ -210,7 +210,7 @@ const JustPricing: React.FC = () => {
                 Privacy Policy
               </a>
               <a
-                href="/TERMS%20AND%20CONDITIONS.pdf"
+                href="/TERMS%20AND%20CONDITIONS.pdf?v=20251220"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-blue-400 transition-colors duration-300"
