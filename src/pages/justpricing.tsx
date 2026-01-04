@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle, Shield } from "lucide-react";
+import { CheckCircle, Shield, Facebook, Linkedin, Instagram, ArrowUp } from "lucide-react";
 import FrontNavbar from "@/components/FrontNavbar";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
@@ -114,7 +114,7 @@ const JustPricing: React.FC = () => {
               key={plan.name}
               className={`rounded-2xl shadow-lg border transition-all duration-300 hover:shadow-2xl ${
                 plan.featured
-                  ? "bg-gradient-to-br from-blue-600 to-purple-600 text-white border-transparent"
+                  ? `bg-gradient-to-br from-teal-600 to-teal-700 text-white shadow-2xl scale-105 border-teal-500`
                   : `${cardBgClass} ${isDarkMode ? "border-gray-800" : "border-gray-200"}`
               }`}
             >
@@ -230,18 +230,19 @@ const JustPricing: React.FC = () => {
             {/* Social Links */}
             <div className="flex items-center gap-3 flex-wrap">
               {[
-                { icon: "f", label: "Facebook" },
-                { icon: "in", label: "LinkedIn" },
-                { icon: "𝕏", label: "Twitter" },
-                { icon: "📷", label: "Instagram" }
+                { icon: Facebook, label: "Facebook", url: "https://facebook.com" },
+                { icon: Linkedin, label: "LinkedIn", url: "https://linkedin.com" },
+                { icon: Instagram, label: "Instagram", url: "https://instagram.com" }
               ].map((social) => (
                 <a
                   key={social.label}
-                  href="#"
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   title={social.label}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 ${isDarkMode ? "border-gray-600 text-gray-400 hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10" : "border-gray-400 text-gray-700 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-600/10"}`}
                 >
-                  {social.icon}
+                  <social.icon className="h-5 w-5" />
                 </a>
               ))}
               {/* Policy Links */}
@@ -262,18 +263,19 @@ const JustPricing: React.FC = () => {
                 Terms and Conditions
               </a>
             </div>
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className={`rounded-full px-4 py-2 transition ${isDarkMode ? "border-gray-600 text-gray-300 hover:text-white hover:border-blue-400 hover:bg-blue-400/10" : "border-gray-400 text-gray-700 hover:text-gray-900 hover:border-blue-600 hover:bg-blue-600/10"}`}
-                aria-label="Back to top"
-              >
-                Back to top
-              </button>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
               <p className="flex items-center gap-2">
                 <span className="text-blue-400">©</span> 2025 trustNshare. All rights reserved.
               </p>
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className={`p-3 rounded-full border-2 font-bold text-lg transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center ${isDarkMode ? "border-blue-500 text-blue-400 bg-blue-500/20 hover:border-blue-400 hover:bg-blue-500/30 hover:text-blue-300" : "border-blue-600 text-blue-600 bg-blue-600/20 hover:border-blue-700 hover:bg-blue-600/30 hover:text-blue-700"}`}
+                aria-label="Back to top"
+                title="Back to top"
+              >
+                <ArrowUp className="h-6 w-6" />
+              </button>
             </div>
           </div>
         </div>

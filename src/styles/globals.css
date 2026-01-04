@@ -95,9 +95,7 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+  font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg);
@@ -110,6 +108,73 @@ body {
 html {
   /* scale between 14px on small screens and 18px on very large screens */
   font-size: clamp(14px, 1.2vw + 12px, 18px);
+  text-rendering: optimizeLegibility;
+}
+
+/* Enhanced typography with Inter font */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+h5 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+p {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: -0.2px;
+}
+
+button, input, select, textarea {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 500;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  letter-spacing: -0.1px;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 /* Make images responsive by default */
@@ -483,6 +548,173 @@ video {
   opacity: 1;
 }
 
+/* Enhanced dark mode for form inputs and textareas */
+.dark input::placeholder,
+.dark textarea::placeholder,
+.dark select::placeholder {
+  color: #a8b5c1 !important;
+  opacity: 1;
+}
+
+/* Dark mode input styling */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark textarea,
+.dark select {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
+
+.dark input[type="text"]:focus,
+.dark input[type="email"]:focus,
+.dark input[type="password"]:focus,
+.dark input[type="number"]:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #0a9db0 !important;
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+/* Button color improvements in dark mode */
+.dark button[type="button"],
+.dark button[type="submit"],
+.dark [role="button"] {
+  transition: all 0.2s ease;
+}
+
+/* Outline buttons in dark mode */
+.dark [class*="outline"] button,
+.dark button[class*="outline"] {
+  border-color: #475569 !important;
+  color: #f1f5f9 !important;
+}
+
+.dark [class*="outline"] button:hover,
+.dark button[class*="outline"]:hover {
+  background-color: #334155 !important;
+  border-color: #64748b !important;
+}
+
+/* Ghost buttons in dark mode */
+.dark [class*="ghost"] button,
+.dark button[class*="ghost"] {
+  color: #f1f5f9 !important;
+}
+
+.dark [class*="ghost"] button:hover,
+.dark button[class*="ghost"]:hover {
+  background-color: #334155 !important;
+}
+
+/* Secondary buttons in dark mode */
+.dark [class*="secondary"] button,
+.dark button[class*="secondary"] {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
+
+.dark [class*="secondary"] button:hover,
+.dark button[class*="secondary"]:hover {
+  background-color: #0f172a !important;
+}
+
+/* Link buttons in dark mode */
+.dark [class*="link"] button,
+.dark button[class*="link"] {
+  color: #60a5fa !important;
+}
+
+.dark [class*="link"] button:hover,
+.dark button[class*="link"]:hover {
+  color: #93c5fd !important;
+}
+/* ===================================
+   DARK MODE THEME ENHANCEMENTS
+   =================================== */
+
+/* General dark mode text improvements */
+.dark .text-muted-foreground {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-xs.text-muted-foreground,
+.dark .text-sm.text-muted-foreground {
+  color: #a8b5c1 !important;
+}
+
+/* Card and container styling in dark mode */
+.dark .card,
+.dark [class*="Card"] {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* Ensure text is always readable */
+.dark body,
+.dark {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+/* Dialog and modal styling */
+.dark [role="dialog"],
+.dark [class*="DialogContent"] {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* Table styling in dark mode */
+.dark table {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+.dark table thead {
+  background-color: #0f172a !important;
+  border-bottom-color: #334155 !important;
+}
+
+.dark table tbody tr {
+  border-bottom-color: #334155 !important;
+}
+
+.dark table tbody tr:hover {
+  background-color: #334155 !important;
+}
+
+/* Tab styling */
+.dark [role="tablist"] {
+  border-color: #334155 !important;
+}
+
+.dark [role="tab"] {
+  color: #cbd5e1 !important;
+  border-color: transparent !important;
+}
+
+.dark [role="tab"][aria-selected="true"] {
+  color: #f1f5f9 !important;
+  border-color: #0a9db0 !important;
+  background-color: #1e293b !important;
+}
+
+/* Checkbox and radio in dark mode */
+.dark input[type="checkbox"],
+.dark input[type="radio"] {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+}
+
+.dark input[type="checkbox"]:checked,
+.dark input[type="radio"]:checked {
+  background-color: #0a9db0 !important;
+  border-color: #0a9db0 !important;
+}
 /* Adjust input/select/textarea backgrounds for dark mode */
 [data-theme="dark"] input,
 [data-theme="dark"] textarea,
@@ -490,6 +722,25 @@ video {
   background: var(--bg-dark-secondary) !important;
   color: var(--text-dark-primary) !important;
   border-color: var(--border-dark) !important;
+}
+
+/* Improve DialogDescription visibility in dark mode */
+.dark [class*="DialogDescription"] {
+  color: var(--text-dark-secondary) !important;
+}
+
+/* Improve form labels visibility in dark mode */
+.dark label,
+.dark [class*="Label"] {
+  color: var(--text-dark-primary) !important;
+}
+
+/* Improve dialog titles visibility */
+.dark [class*="DialogTitle"],
+.dark h1,
+.dark h2,
+.dark h3 {
+  color: var(--text-dark-primary) !important;
 }
 
 /* Ensure small card panels are slightly darker for contrast */

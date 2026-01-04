@@ -178,7 +178,7 @@ const Share = () => {
                     <p className="text-sm text-muted-foreground">Create or select a security policy for this share</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button className="bg-primary text-primary-foreground" onClick={() => navigate('/policies?openCreate=true')}>Create Policy</Button>
+                    <Button className="text-white" style={{ backgroundColor: '#113738' }} onClick={() => navigate('/policies?openCreate=true')}>Create Policy</Button>
                     <Dialog open={isPolicyDialogOpen} onOpenChange={setIsPolicyDialogOpen}>
                         <DialogTrigger asChild>
                           <Button variant="outline">Select Policy</Button>
@@ -238,7 +238,8 @@ const Share = () => {
               <Button
                 onClick={handleShare}
                 disabled={!file || isSharing}
-                className="w-full bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90"
+                className="w-full text-white hover:opacity-90"
+                style={{ backgroundColor: '#113738' }}
               >
                 {isSharing ? (
                   <>Processing...</>

@@ -24,6 +24,38 @@ const formatDate = (d?: any) => {
 
 const Chat = () => {
   const { currentUser } = useAuth();
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme-preference');
+      if (saved === 'light' || saved === 'dark') {
+        return saved === 'dark';
+      }
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+  
+  useEffect(() => {
+    // Listen for theme changes by observing document class changes
+    const observer = new MutationObserver(() => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDark);
+    });
+    
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    // Also apply theme to document
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    
+    return () => observer.disconnect();
+  }, [isDarkMode]);
+  
   const [contacts, setContacts] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
   const [search, setSearch] = useState('');
@@ -274,7 +306,11 @@ const Chat = () => {
       const isMe = m.from === currentUser?.uid;
       rows.push(
         <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-          <div className={`relative max-w-[70%] px-4 py-2 rounded-lg ${isMe ? 'bg-green-500 text-white' : 'bg-white dark:bg-card text-gray-900 dark:text-foreground'} shadow-sm`}>
+          <div className={`relative max-w-[70%] px-4 py-2 rounded-lg shadow-sm ${
+            isMe 
+              ? 'bg-green-500 text-white' 
+              : (isDarkMode ? 'bg-gray-700 text-gray-100' : 'bg-gray-100 text-gray-900')
+          }`}>
             <button onClick={() => toggleStar(m)} title="Star" className={`absolute -top-3 right-0 p-1 rounded ${m.starred ? 'text-yellow-400' : 'text-muted-foreground'}`}>
               <Star className="h-4 w-4" />
             </button>
@@ -304,28 +340,54 @@ const Chat = () => {
 
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-80px)] bg-gray-50 p-6">
-        <div className="max-w-[1200px] mx-auto bg-transparent h-full shadow-none">
-          <div className="flex h-full border rounded-lg overflow-hidden bg-white">
+      <div className={`h-[calc(100vh-80px)] p-4 sm:p-6 ${
+        isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
+        <div className="max-w-[1400px] mx-auto h-full shadow-none">
+          <div className={`flex h-full border rounded-lg overflow-hidden ${
+            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             {/* Left column - contacts */}
-            <div className="w-80 border-r flex flex-col">
-              <div className="px-4 py-3 border-b flex items-center gap-2">
-                <h3 className="text-lg font-semibold">Conversations</h3>
+            <div className={`w-64 sm:w-80 border-r flex flex-col ${
+              isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+            }`}>
+              <div className={`px-4 py-3 border-b flex items-center gap-2 ${
+                isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+              }`}>
+                <h3 className={`text-lg font-semibold ${
+                  isDarkMode ? 'text-gray-100' : 'text-gray-900'
+                }`}>Conversations</h3>
               </div>
-              <div className="p-3 sticky top-0 bg-white z-10">
+              <div className={`p-3 sticky top-0 z-10 ${
+                isDarkMode ? 'bg-gray-800' : 'bg-white'
+              }`}>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" placeholder="Search or start new chat" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} className={`pl-10 ${
+                    isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                  }`} placeholder="Search or start new chat" />
                 </div>
               </div>
               <div className="flex-1 overflow-auto">
-                <div className="divide-y">
+                <div className={isDarkMode ? 'divide-y divide-gray-700' : 'divide-y divide-gray-200'}>
                   {contacts.filter(c => (c.displayName || c.username || c.email || '').toLowerCase().includes(search.toLowerCase())).map((c) => (
-                    <button key={c.uid} onClick={() => setSelected(c)} className={`w-full text-left p-3 flex items-center gap-3 hover:bg-gray-50 ${selected?.uid === c.uid ? 'bg-gray-100' : ''}`}>
-                      <div className="h-10 w-10 flex-shrink-0" />
+                    <button key={c.uid} onClick={() => setSelected(c)} className={`w-full text-left p-3 flex items-center gap-3 transition-colors ${
+                      isDarkMode 
+                        ? `${selected?.uid === c.uid ? 'bg-gray-700' : 'hover:bg-gray-700'} text-gray-100` 
+                        : `${selected?.uid === c.uid ? 'bg-gray-100' : 'hover:bg-gray-50'} text-gray-900`
+                    }`}>
+                      <div className={`h-10 w-10 flex-shrink-0 rounded-full flex items-center justify-center ${
+                        isDarkMode ? 'bg-teal-600' : 'bg-teal-100'
+                      }`}>
+                        <span className={isDarkMode ? 'text-white text-sm font-semibold' : 'text-teal-900 text-sm font-semibold'}>
+                          {(c.displayName?.[0] || c.email?.[0] || 'U').toUpperCase()}
+                        </span>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <div className="truncate font-medium text-foreground">{c.displayName || c.username || c.email} {c.isMe ? <span className="text-xs text-muted-foreground">(self)</span> : null}</div>
+                          <div className={`truncate font-medium ${
+                            isDarkMode ? 'text-gray-100' : 'text-gray-900'
+                          }`}>{c.displayName || c.username || c.email} {c.isMe ? <span className="text-xs text-muted-foreground">(self)</span> : null}</div>
                         </div>
                         <div className="text-xs text-muted-foreground truncate">{c.title || ''}</div>
                       </div>
@@ -336,40 +398,64 @@ const Chat = () => {
             </div>
 
             {/* Right column - chat area */}
-            <div className="flex-1 flex flex-col">
-              <div className="px-4 py-3 border-b flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium text-foreground">{selected?.displayName || selected?.email || 'Select a chat'}</div>
+            <div className={`flex-1 flex flex-col min-w-0 ${
+              isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+              <div className={`px-4 py-3 border-b flex items-center justify-between ${
+                isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+              }`}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`h-10 w-10 flex-shrink-0 rounded-full flex items-center justify-center ${
+                    isDarkMode ? 'bg-teal-600' : 'bg-teal-100'
+                  }`}>
+                    <span className={isDarkMode ? 'text-white text-sm font-semibold' : 'text-teal-900 text-sm font-semibold'}>
+                      {(selected?.displayName?.[0] || selected?.email?.[0] || 'C').toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className={`font-medium truncate ${
+                      isDarkMode ? 'text-gray-100' : 'text-gray-900'
+                    }`}>{selected?.displayName || selected?.email || 'Select a chat'}</div>
                       <div className="text-xs text-muted-foreground">{selected ? (selected.status || 'Active') : ''}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 relative">
-                  <button onClick={() => setMenuOpen(s => !s)} className="p-2 rounded bg-transparent"><MoreVertical className="h-4 w-4" /></button>
+                <div className="flex items-center gap-2 relative flex-shrink-0">
+                  <button onClick={() => setMenuOpen(s => !s)} className={`p-2 rounded transition-colors ${
+                    isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                  }`}><MoreVertical className="h-4 w-4" /></button>
                   {menuOpen && (
-                    <div className="absolute right-0 top-10 bg-white border rounded shadow-md w-56 z-50">
-                      <button onClick={() => { setMenuOpen(false); const color = prompt('Enter a background color (hex or css):',''); if (color) setChatTheme({ bg: color }); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"><Paintbrush/> Change Theme Color</button>
-                      <button onClick={() => { setMenuOpen(false); bgInputRef.current?.click(); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"><Paintbrush/> Change Background Image</button>
-                      <button onClick={() => { setMenuOpen(false); exportChat(); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"><Download/> Export Chat</button>
-                      <button onClick={() => { setMenuOpen(false); const starred = messages.filter(m => m.starred); alert(`Starred messages:\n\n${starred.map(s=> (s.content || s.file?.name) + ' - ' + (s.timestampText||'')).join('\n')}`); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"><Star/> Starred Messages</button>
+                    <div className={`absolute right-0 top-10 border rounded shadow-md w-56 z-50 ${
+                      isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'
+                    }`}>
+                      <button onClick={() => { setMenuOpen(false); const color = prompt('Enter a background color (hex or css):',''); if (color) setChatTheme({ bg: color }); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${
+                        isDarkMode ? 'hover:bg-gray-600 text-gray-100' : 'hover:bg-gray-50 text-gray-900'
+                      }`}><Paintbrush/> Change Theme Color</button>
+                      <button onClick={() => { setMenuOpen(false); bgInputRef.current?.click(); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${
+                        isDarkMode ? 'hover:bg-gray-600 text-gray-100' : 'hover:bg-gray-50 text-gray-900'
+                      }`}><Paintbrush/> Change Background Image</button>
+                      <button onClick={() => { setMenuOpen(false); exportChat(); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${
+                        isDarkMode ? 'hover:bg-gray-600 text-gray-100' : 'hover:bg-gray-50 text-gray-900'
+                      }`}><Download/> Export Chat</button>
+                      <button onClick={() => { setMenuOpen(false); const starred = messages.filter(m => m.starred); alert(`Starred messages:\n\n${starred.map(s=> (s.content || s.file?.name) + ' - ' + (s.timestampText||'')).join('\n')}`); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${
+                        isDarkMode ? 'hover:bg-gray-600 text-gray-100' : 'hover:bg-gray-50 text-gray-900'
+                      }`}><Star/> Starred Messages</button>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* messages */}
-              <div className="flex-1 p-4 overflow-hidden" style={ chatTheme.bg ? { background: chatTheme.bg } : undefined }>
+              <div className={`flex-1 p-4 overflow-hidden ${
+                isDarkMode ? 'bg-gray-800' : 'bg-white'
+              }`} style={ chatTheme.bg ? { background: chatTheme.bg } : undefined }>
                 <div ref={listRef} className="h-full overflow-auto flex flex-col gap-3">
                   {selected ? renderMessages() : (
                     <div className="m-auto text-center text-muted-foreground flex flex-col items-center gap-6">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 shadow-lg">
-                          <Shield className="h-12 w-12 text-white" />
-                        </div>
+                        <img src="/lbg.png" alt="trustNshare light" className="h-28 md:h-32 object-contain block dark:hidden" />
+                        <img src="/bg.png" alt="trustNshare" className="h-28 md:h-32 object-contain hidden dark:block" />
                       </div>
                       <div>
-                        <div className="text-4xl font-bold">trustNshare</div>
                         <div className="text-lg opacity-80 mt-2 max-w-xl">Secure File Sharing for Modern Businesses — protect sensitive data with end-to-end encryption, granular access control, and audit visibility.</div>
                       </div>
                     </div>
@@ -379,24 +465,38 @@ const Chat = () => {
 
               {/* input (only show when a chat is selected) */}
               {selected && (
-                <div className="px-4 py-3 border-t">
-                  <div className="flex items-center gap-3">
+                <div className={`px-4 py-3 border-t ${
+                  isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+                }`}>
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
                       <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAttachFile(f); e.currentTarget.value = ''; }} />
-                      <button onClick={openAttach} className="p-2 rounded-full bg-transparent" title="Attach">
+                      <button onClick={openAttach} className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+                        isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                      }`} title="Attach">
                         <Paperclip className="h-5 w-5 text-muted-foreground" />
                       </button>
-                      <button onClick={toggleEmoji} className="p-2 rounded-full bg-transparent" title="Emoji">
+                      <button onClick={toggleEmoji} className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+                        isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                      }`} title="Emoji">
                         <Smile className="h-5 w-5 text-muted-foreground" />
                       </button>
-                      <button onClick={toggleRecording} className={`p-2 rounded-full ${recording ? 'bg-red-100' : 'bg-transparent'}`} title="Voice message">
+                      <button onClick={toggleRecording} className={`p-2 rounded-full flex-shrink-0 transition-colors ${
+                        recording 
+                          ? (isDarkMode ? 'bg-red-900' : 'bg-red-100')
+                          : (isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100')
+                      }`} title="Voice message">
                         <Mic className="h-5 w-5 text-muted-foreground" />
                       </button>
-                      <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message" className="flex-1" onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }} />
-                      <Button onClick={sendMessage} size="sm"><Send className="h-4 w-4" /></Button>
+                      <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message" className={`flex-1 min-w-0 ${
+                        isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
+                      }`} onKeyDown={(e) => { if (e.key === 'Enter') sendMessage(); }} />
+                      <Button onClick={sendMessage} size="sm" className="flex-shrink-0 text-white" style={{ backgroundColor: '#113738' }}><Send className="h-4 w-4" /></Button>
                       {showEmoji && (
-                        <div className="absolute bottom-20 left-60 bg-white border rounded shadow p-2 grid grid-cols-8 gap-1">
+                        <div className={`absolute bottom-20 left-60 border rounded shadow p-2 grid grid-cols-8 gap-1 z-50 ${
+                          isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'
+                        }`}>
                           {['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😍','😘','😎','🤔','🙌','👍','🙏'].map(em => (
-                            <button key={em} onClick={() => insertEmoji(em)} className="p-1 text-lg">{em}</button>
+                            <button key={em} onClick={() => insertEmoji(em)} className="p-1 text-lg hover:scale-125 transition-transform">{em}</button>
                           ))}
                         </div>
                       )}
@@ -408,14 +508,24 @@ const Chat = () => {
         </div>
       </div>
       {attachOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={closeAttach}></div>
-          <div className="relative bg-white rounded-lg shadow-lg w-[640px] max-w-full p-6">
+          <div className={`relative rounded-lg shadow-lg w-full max-w-[640px] p-6 ${
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          }`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Share a file</h3>
-              <button onClick={closeAttach} className="text-sm px-2 py-1">Close</button>
+              <h3 className={`text-lg font-semibold ${
+                isDarkMode ? 'text-gray-100' : 'text-gray-900'
+              }`}>Share a file</h3>
+              <button onClick={closeAttach} className={`text-sm px-2 py-1 transition-colors ${
+                isDarkMode ? 'hover:bg-gray-700 text-gray-100' : 'hover:bg-gray-100 text-gray-900'
+              }`}>Close</button>
             </div>
-            <div onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} className={`border-dashed border-2 rounded p-8 text-center ${dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
+            <div onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} className={`border-dashed border-2 rounded p-8 text-center transition-colors ${
+              dragOver 
+                ? (isDarkMode ? 'border-teal-400 bg-teal-900/30' : 'border-teal-400 bg-teal-50')
+                : (isDarkMode ? 'border-gray-600' : 'border-gray-200')
+            }`}>
               <div className="mb-2">
                 <strong>Drag & drop</strong> files here, or
               </div>

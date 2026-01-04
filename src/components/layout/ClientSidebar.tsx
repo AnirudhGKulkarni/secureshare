@@ -114,7 +114,7 @@ export const ClientSidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: bo
   const panel = (
     <div className="flex flex-col h-full">
       <div className="w-full">
-        <div className="h-20 border-b border-border flex items-center">
+        <div className="h-20 border-b border-border flex items-center bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900">
           <div className="w-full h-20 flex items-center justify-center px-2">
             {/* Logo: Show full logo on mobile, compact on desktop collapsed state */}
             <div className="flex items-center justify-center w-full h-full relative">
@@ -140,7 +140,7 @@ export const ClientSidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: bo
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 px-0 py-4">
+      <nav className="flex-1 space-y-1 px-2 py-4">
         {filteredNavigation.map((item) => (
           <NavLink
             key={item.name}
@@ -149,27 +149,23 @@ export const ClientSidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: bo
             title={item.name}
             className={({ isActive }) =>
               cn(
-                'flex items-center transition-all duration-150 rounded-lg',
+                // center icons when collapsed on desktop, align left on mobile and hover
+                'flex items-center gap-3 transition-all duration-200 rounded-md',
                 'lg:justify-center lg:group-hover:justify-start justify-start',
-                'px-3 lg:px-0 lg:group-hover:px-3',
+                'px-2 lg:px-1 lg:group-hover:px-3',
                 'py-2.5 text-sm font-medium',
-                'hover:bg-secondary hover:text-foreground',
-                isActive ? 'lg:group-hover:bg-gradient-to-r lg:group-hover:from-blue-500 lg:group-hover:to-purple-600 lg:group-hover:text-white bg-gradient-to-r from-blue-500 to-purple-600 text-white' : 'text-muted-foreground'
+                'hover:bg-teal-100/50 dark:hover:bg-teal-900/30',
+                isActive ? 'lg:group-hover:bg-teal-600 lg:group-hover:text-white bg-teal-600 text-white' : 'text-foreground/70 dark:text-foreground/80 hover:text-foreground'
               )
             }
           >
             {({ isActive }: { isActive: boolean }) => (
               <>
-                <span
-                  className={cn(
-                    'inline-flex items-center justify-center w-9 h-9 flex-shrink-0 transition-all',
-                    isActive ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white' : 'text-muted-foreground',
-                    'group-hover:bg-transparent group-hover:text-current group-hover:p-0'
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                </span>
-                <span className="ml-3 overflow-hidden lg:max-w-0 lg:opacity-0 max-w-xs opacity-100 group-hover:max-w-xs group-hover:opacity-100 transition-[max-width,opacity] duration-200 whitespace-nowrap">{item.name}</span>
+                <item.icon className={cn(
+                  'h-5 w-5 flex-shrink-0 transition-all',
+                  isActive ? 'text-white' : 'text-foreground/70 group-hover:text-teal-600 dark:group-hover:text-teal-400'
+                )} />
+                <span className="overflow-hidden lg:max-w-0 lg:opacity-0 max-w-xs opacity-100 group-hover:max-w-xs group-hover:opacity-100 transition-[max-width,opacity] duration-200 whitespace-nowrap font-bold text-foreground dark:text-foreground">{item.name}</span>
               </>
             )}
           </NavLink>
@@ -210,7 +206,7 @@ export const ClientSidebar = ({ mobileOpen = false, onClose }: { mobileOpen?: bo
               }
             } catch (e) {}
           }}
-          className="flex flex-col h-full w-16 group-hover:w-64 transition-[width] duration-200 ease-linear bg-sky-50 dark:bg-background group-hover:bg-white dark:group-hover:bg-card border-r-2 border-sky-200 group-hover:border-border overflow-hidden z-20 group-hover:z-40"
+          className="flex flex-col h-full w-16 group-hover:w-64 transition-[width] duration-200 ease-linear bg-gradient-to-b from-teal-50 to-cyan-50 dark:from-gray-900 dark:via-slate-800 dark:to-gray-900 group-hover:bg-card border-r-2 border-teal-200 dark:border-teal-700 group-hover:border-border overflow-hidden z-20 group-hover:z-40"
           style={{ willChange: 'width' }}
         >
           {panel}

@@ -75,7 +75,7 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
   return (
     <nav className={`sticky top-0 z-50 transition-all duration-300 backdrop-blur-md border-b navbar-bg-image ${
       isDarkMode 
-        ? "bg-gray-900/80 border-gray-800/50 shadow-lg" 
+        ? "bg-gray-900/90 border-teal-700/50 shadow-lg" 
         : "bg-white/80 border-gray-200/50 shadow-md"
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -97,7 +97,7 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
           {/* Desktop Navigation Items */}
           {!minimal && (
             <div className={`hidden lg:flex space-x-1 transition-all duration-300 ${
-              isDarkMode ? "text-gray-300" : "text-gray-700"
+              isDarkMode ? "text-teal-100" : "text-gray-700"
             }`}>
             {navItems.map((item) => {
               const isAnchor = item.href.startsWith('#');
@@ -109,7 +109,7 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                         onClick={() => toggleDropdown(item.label)}
                         className={`px-4 py-2 rounded-lg transition-all duration-300 flex items-center gap-1 font-medium ${
                           isDarkMode
-                            ? "text-gray-300 hover:text-white hover:bg-gray-800/50"
+                            ? "text-teal-100 hover:text-white hover:bg-teal-700/30"
                             : "text-gray-700 hover:text-blue-600 hover:bg-gray-100/50"
                         }`}
                       >
@@ -121,7 +121,7 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                         <div
                           className={`absolute left-0 mt-2 w-56 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 py-2 border ${
                             isDarkMode 
-                              ? "bg-gray-800/95 border-gray-700 shadow-2xl" 
+                              ? "bg-gray-800/95 border-teal-700 shadow-2xl" 
                               : "bg-white/95 border-gray-100 shadow-2xl"
                           }`}
                         >
@@ -131,7 +131,7 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
                               type="button"
                               className={`w-full text-left px-4 py-3 text-sm transition-all duration-300 ${
                                 isDarkMode
-                                  ? "text-gray-300 hover:text-white hover:bg-gray-700/50"
+                                  ? "text-teal-100 hover:text-white hover:bg-teal-700/40"
                                   : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                               } ${idx === 0 ? "rounded-t-lg" : ""} ${idx === item.submenu.length - 1 ? "rounded-b-lg" : ""}`}
                               onClick={() => {
@@ -227,18 +227,63 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
               {/* Theme Toggle Button - Always Visible */}
               <button
                 onClick={onThemeToggle}
-                className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+                className="relative inline-flex items-center h-10 w-16 rounded-full transition-all duration-300 focus:outline-none shadow-lg hover:shadow-2xl hover:scale-110 animate-pulse border-2"
+                style={{
+                  backgroundColor: isDarkMode ? '#1a2f30' : '#f0f4f8',
+                  borderColor: isDarkMode ? '#0a7c87' : '#1e40af',
+                  boxShadow: isDarkMode 
+                    ? '0 0 25px rgba(10, 157, 176, 0.4), 0 4px 15px rgba(0, 0, 0, 0.4)'
+                    : '0 0 25px rgba(251, 191, 36, 0.5), 0 4px 15px rgba(59, 130, 246, 0.3)'
+                }}
                 title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
               >
-                {isDarkMode ? (
-                  <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.536l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.121-10.121l.707-.707a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414zm0 10.121a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zM7 11a1 1 0 100-2 1 1 0 000 2zm-2.536-2.464a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zM3 8a1 1 0 110-2 1 1 0 010 2zm7-3a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                )}
+                {/* Background toggle */}
+                <div className="absolute inset-0 flex items-center rounded-full px-1">
+                  <div className="flex-1 flex justify-center">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" style={{ color: isDarkMode ? '#9ca3af' : '#fbbf24' }}>
+                      <circle cx="10" cy="10" r="3"/>
+                      <line x1="10" y1="1" x2="10" y2="2.5" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="10" y1="17.5" x2="10" y2="19" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="1" y1="10" x2="2.5" y2="10" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="17.5" y1="10" x2="19" y2="10" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="2.93" y1="2.93" x2="4.05" y2="4.05" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="15.95" y1="15.95" x2="17.07" y2="17.07" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="17.07" y1="2.93" x2="15.95" y2="4.05" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="4.05" y1="15.95" x2="2.93" y2="17.07" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 flex justify-center">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" style={{ color: isDarkMode ? '#fbbf24' : '#9ca3af' }}>
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* Animated slider circle */}
+                <div
+                  className="absolute inline-flex items-center justify-center h-8 w-8 transform rounded-full bg-white shadow-xl transition-transform duration-300"
+                  style={{
+                    transform: isDarkMode ? 'translateX(30px)' : 'translateX(2px)',
+                  }}
+                >
+                  {isDarkMode ? (
+                    <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                      <circle cx="10" cy="10" r="3"/>
+                      <line x1="10" y1="1" x2="10" y2="2.5" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="10" y1="17.5" x2="10" y2="19" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="1" y1="10" x2="2.5" y2="10" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="17.5" y1="10" x2="19" y2="10" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="2.93" y1="2.93" x2="4.05" y2="4.05" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="15.95" y1="15.95" x2="17.07" y2="17.07" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="17.07" y1="2.93" x2="15.95" y2="4.05" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="4.05" y1="15.95" x2="2.93" y2="17.07" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                    </svg>
+                  )}
+                </div>
               </button>
               </div>
             )}
@@ -388,21 +433,62 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
               {/* Theme Toggle Button - Mobile */}
               <button
                 onClick={onThemeToggle}
-                className={`rounded-lg p-2.5 transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center border ${
-                  isDarkMode
-                    ? "border-amber-500/40 bg-slate-800 hover:border-amber-500/60 hover:bg-slate-700 text-amber-400"
-                    : "border-blue-400/40 bg-slate-100 hover:border-blue-400/60 hover:bg-slate-200 text-blue-500"
-                }`}
+                className="relative inline-flex items-center h-10 w-16 rounded-full transition-all duration-300 focus:outline-none shadow-lg hover:shadow-2xl hover:scale-110 animate-pulse border-2"
+                style={{
+                  backgroundColor: isDarkMode ? '#1f2937' : '#f0f4f8',
+                  borderColor: isDarkMode ? '#7c3aed' : '#1e40af',
+                  boxShadow: isDarkMode 
+                    ? '0 0 25px rgba(251, 191, 36, 0.4), 0 4px 15px rgba(0, 0, 0, 0.4)'
+                    : '0 0 25px rgba(251, 191, 36, 0.5), 0 4px 15px rgba(59, 130, 246, 0.3)'
+                }}
               >
-                {isDarkMode ? (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.536l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.121-10.121l.707-.707a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414zm0 10.121a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zM7 11a1 1 0 100-2 1 1 0 000 2zm-2.536-2.464a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zM3 8a1 1 0 110-2 1 1 0 010 2zm7-3a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                )}
+                {/* Background toggle */}
+                <div className="absolute inset-0 flex items-center rounded-full px-1">
+                  <div className="flex-1 flex justify-center">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" style={{ color: isDarkMode ? '#9ca3af' : '#fbbf24' }}>
+                      <circle cx="10" cy="10" r="3"/>
+                      <line x1="10" y1="1" x2="10" y2="2.5" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="10" y1="17.5" x2="10" y2="19" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="1" y1="10" x2="2.5" y2="10" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="17.5" y1="10" x2="19" y2="10" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="2.93" y1="2.93" x2="4.05" y2="4.05" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="15.95" y1="15.95" x2="17.07" y2="17.07" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="17.07" y1="2.93" x2="15.95" y2="4.05" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="4.05" y1="15.95" x2="2.93" y2="17.07" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 flex justify-center">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" style={{ color: isDarkMode ? '#fbbf24' : '#9ca3af' }}>
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* Animated slider circle */}
+                <div
+                  className="absolute inline-flex items-center justify-center h-8 w-8 transform rounded-full bg-white shadow-xl transition-transform duration-300"
+                  style={{
+                    transform: isDarkMode ? 'translateX(30px)' : 'translateX(2px)',
+                  }}
+                >
+                  {isDarkMode ? (
+                    <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                      <circle cx="10" cy="10" r="3"/>
+                      <line x1="10" y1="1" x2="10" y2="2.5" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="10" y1="17.5" x2="10" y2="19" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="1" y1="10" x2="2.5" y2="10" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="17.5" y1="10" x2="19" y2="10" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="2.93" y1="2.93" x2="4.05" y2="4.05" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="15.95" y1="15.95" x2="17.07" y2="17.07" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="17.07" y1="2.93" x2="15.95" y2="4.05" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                      <line x1="4.05" y1="15.95" x2="2.93" y2="17.07" strokeWidth="1.5" stroke="currentColor" strokeLinecap="round"/>
+                    </svg>
+                  )}
+                </div>
               </button>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import FrontNavbar from "@/components/FrontNavbar";
-import { Shield } from "lucide-react";
+import { Shield, Facebook, Linkedin, Instagram, ArrowUp } from "lucide-react";
 
 const planPrices: Record<string, number> = {
   Starter: 2250,
@@ -158,16 +158,28 @@ const Checkout: React.FC = () => {
         <div className="border-t border-gray-700 pt-8 mt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
             <div className="flex items-center gap-3 flex-wrap">
-              <a href="#" title="Facebook" className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95">f</a>
-              <a href="#" title="LinkedIn" className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95">in</a>
-              <a href="#" title="Twitter" className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95">𝕏</a>
-              <a href="#" title="Instagram" className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95">📷</a>
+              {[
+                { icon: Facebook, label: "Facebook", url: "https://facebook.com" },
+                { icon: Linkedin, label: "LinkedIn", url: "https://linkedin.com" },
+                { icon: Instagram, label: "Instagram", url: "https://instagram.com" }
+              ].map((social) => (
+                <a 
+                  key={social.label}
+                  href={social.url} 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={social.label} 
+                  className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center hover:border-blue-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all duration-300 text-gray-400 hover:scale-110 active:scale-95"
+                >
+                  <social.icon className="h-5 w-5" />
+                </a>
+              ))}
               <a href="/PRIVACY%20POLICY.pdf?v=20251220" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors duration-300">Privacy Policy</a>
               <a href="/TERMS%20AND%20CONDITIONS.pdf?v=20251220" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors duration-300">Terms and Conditions</a>
             </div>
-            <div className="flex items-center gap-4">
-              <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="rounded-full px-4 py-2 border border-gray-600 text-gray-300 hover:text-white hover:border-blue-400 hover:bg-blue-400/10 transition">Back to top</button>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
               <p className="flex items-center gap-2"><span className="text-blue-400">©</span> 2025 trustNshare. All rights reserved.</p>
+              <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className={`p-3 rounded-full border-2 font-bold text-lg transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center ${isDarkMode ? "border-blue-500 text-blue-400 bg-blue-500/20 hover:border-blue-400 hover:bg-blue-500/30 hover:text-blue-300" : "border-blue-600 text-blue-600 bg-blue-600/20 hover:border-blue-700 hover:bg-blue-600/30 hover:text-blue-700"}`} aria-label="Back to top" title="Back to top"><ArrowUp className="h-6 w-6" /></button>
             </div>
           </div>
         </div>

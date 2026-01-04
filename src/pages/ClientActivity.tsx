@@ -60,7 +60,7 @@ const ClientActivity: React.FC = () => {
     <div className="p-6 space-y-6 h-full overflow-auto">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Recent Activity</h2>
-        <p className="text-sm text-muted-foreground">Your recent actions and audit trail</p>
+        <p className="text-sm text-muted-foreground dark:text-slate-400">Your recent actions and audit trail</p>
       </div>
 
       <Card className="max-h-[68vh] overflow-auto">
@@ -69,12 +69,12 @@ const ClientActivity: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {items.length === 0 && <div className="text-sm text-muted-foreground">No activity yet.</div>}
+            {items.length === 0 && <div className="text-sm text-muted-foreground dark:text-slate-400">No activity yet.</div>}
             {items.map((it) => (
               <div key={it.id} className="p-3 rounded-md border bg-secondary/20 flex items-start justify-between">
                 <div>
                   <div className="text-sm font-medium text-foreground">{it.action}{it.resource ? ` — ${it.resource}` : ''}</div>
-                  {it.details && <div className="text-xs text-muted-foreground mt-1">{it.details}</div>}
+                  {it.details && <div className="text-xs text-muted-foreground dark:text-slate-400 mt-1">{it.details}</div>}
                 </div>
                 <div className="flex items-center gap-3">
                   {/* Show view button for non-login uploads/downloads/updates */}
@@ -89,7 +89,7 @@ const ClientActivity: React.FC = () => {
                     </button>
                   ) : null}
 
-                  <div className="text-xs text-muted-foreground">{getRelativeTime(it.timestamp)}</div>
+                  <div className="text-xs text-muted-foreground dark:text-slate-400">{getRelativeTime(it.timestamp)}</div>
                 </div>
               </div>
             ))}

@@ -20,17 +20,17 @@ const ClientSettings: React.FC = () => {
         <CardContent>
           <div className="space-y-4">
             <div>
-              <div className="text-sm text-muted-foreground">Account</div>
+              <div className="text-sm text-muted-foreground dark:text-slate-400">Account</div>
               <div className="mt-2">Signed in as: <strong>{currentUser?.email}</strong></div>
             </div>
 
             <div>
-              <div className="text-sm text-muted-foreground">Preferences</div>
+              <div className="text-sm text-muted-foreground dark:text-slate-400">Preferences</div>
               <div className="mt-2 text-sm">No client-specific preferences yet.</div>
             </div>
 
             <div className="flex gap-2 mt-4">
-              <Button onClick={() => toast("No actions available yet")}>Manage subscription</Button>
+              <Button onClick={() => toast("No actions available yet")} style={{ backgroundColor: '#113738' }} className="text-white hover:opacity-90">Manage subscription</Button>
               <Button variant="outline" onClick={() => navigate("/client/profile")}>Edit profile</Button>
             </div>
           </div>

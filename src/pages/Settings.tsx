@@ -205,7 +205,7 @@ const Settings = () => {
                 <Label htmlFor="role">Role</Label>
                 <Input id="role" value={role} disabled />
               </div>
-              <Button className="w-full" onClick={handleSaveProfile}>Save Changes</Button>
+              <Button className="w-full text-white" style={{ backgroundColor: '#113738' }} onClick={handleSaveProfile}>Save Changes</Button>
             </CardContent>
           </Card>
 
@@ -243,7 +243,7 @@ const Settings = () => {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full text-white" style={{ backgroundColor: '#113738' }}>
                   Update Password
                 </Button>
               </form>
@@ -354,7 +354,7 @@ const Settings = () => {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button onClick={saveSystemSettings}>Save System Settings</Button>
+                  <Button onClick={saveSystemSettings} className="text-white" style={{ backgroundColor: '#113738' }}>Save System Settings</Button>
                   <Button variant="ghost" onClick={exportAllUsers}>Export All Users</Button>
                 </div>
               </CardContent>

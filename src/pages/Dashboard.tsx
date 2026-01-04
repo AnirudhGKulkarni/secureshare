@@ -4,13 +4,9 @@ import { Badge } from '@/components/ui/badge';
 // avatar removed by user request
 import { Users, Shield, AlertTriangle, TrendingUp, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-
-const stats = [
-  { name: 'Total Users', value: '248', icon: Users, change: '+12%', trend: 'up' },
-  { name: 'Active Policies', value: '42', icon: Shield, change: '+8%', trend: 'up' },
-  { name: 'Security Alerts', value: '3', icon: AlertTriangle, change: '-25%', trend: 'down' },
-  { name: 'Data Shared', value: '1.2TB', icon: TrendingUp, change: '+18%', trend: 'up' },
-];
+import { useEffect, useState } from 'react';
+import { firestore } from '@/lib/firebase';
+import { collection, query, where, getDocs, onSnapshot, collectionGroup } from 'firebase/firestore';
 
 const chartData = [
   { name: 'Jan', before: 85, after: 12 },
@@ -22,11 +18,11 @@ const chartData = [
 ];
 
 const threatPieData = [
-  { name: 'Phishing', value: 35, color: '#ef4444' },
-  { name: 'Malware', value: 25, color: '#f97316' },
-  { name: 'Ransomware', value: 20, color: '#eab308' },
-  { name: 'Data Breach', value: 15, color: '#06b6d4' },
-  { name: 'Other', value: 5, color: '#8b5cf6' },
+  { name: 'Phishing', value: 35, color: '#dc2626' },
+  { name: 'Malware', value: 25, color: '#ea580c' },
+  { name: 'Ransomware', value: 20, color: '#d97706' },
+  { name: 'Data Breach', value: 15, color: '#0a9db0' },
+  { name: 'Other', value: 5, color: '#113738' },
 ];
 
 const threatTrendData = [
@@ -38,14 +34,6 @@ const threatTrendData = [
   { month: 'Dec', threats: 35 },
 ];
 
-const recentUsers = [
-  { name: 'Alice Johnson', email: 'alice@company.com', lastActive: '2 mins ago', avatar: 'AJ', status: 'online' },
-  { name: 'Bob Smith', email: 'bob@company.com', lastActive: '15 mins ago', avatar: 'BS', status: 'online' },
-  { name: 'Carol Davis', email: 'carol@company.com', lastActive: '1 hour ago', avatar: 'CD', status: 'away' },
-  { name: 'David Wilson', email: 'david@company.com', lastActive: '3 hours ago', avatar: 'DW', status: 'offline' },
-  { name: 'Eva Martinez', email: 'eva@company.com', lastActive: '1 day ago', avatar: 'EM', status: 'offline' },
-];
-
 const riskItems = [
   { id: 1, description: 'Unencrypted file shared externally', severity: 'High', status: 'Open', time: '10 mins ago' },
   { id: 2, description: 'Multiple failed login attempts', severity: 'Medium', status: 'Investigating', time: '1 hour ago' },
@@ -54,6 +42,98 @@ const riskItems = [
 ];
 
 const Dashboard = () => {
+  const [stats, setStats] = useState([
+    { name: 'Total Users', value: '0', icon: Users, change: '+0%', trend: 'up' },
+    { name: 'Active Policies', value: '0', icon: Shield, change: '+0%', trend: 'up' },
+    { name: 'Security Alerts', value: '0', icon: AlertTriangle, change: '+0%', trend: 'down' },
+    { name: 'Data Shared', value: '0 B', icon: TrendingUp, change: '+0%', trend: 'up' },
+  ]);
+  const [recentUsers, setRecentUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        // Get total users count - active users with admin or client role
+        const usersSnapshot = await getDocs(
+          query(collection(firestore, 'users'), where('status', '==', 'active'), where('role', 'in', ['admin', 'client']))
+        );
+        const totalUsers = usersSnapshot.size;
+
+        // Get active policies from localStorage (Policies are stored locally, not in Firestore)
+        const policiesData = localStorage.getItem('policies_v1');
+        let activePolicies = 0;
+        if (policiesData) {
+          try {
+            const policies = JSON.parse(policiesData);
+            activePolicies = Array.isArray(policies) ? policies.filter((p: any) => p.status === 'Active').length : 0;
+          } catch (e) {
+            activePolicies = 0;
+          }
+        }
+
+        // Get security alerts count
+        const alertsSnapshot = await getDocs(
+          query(collection(firestore, 'alerts'), where('resolved', '==', false))
+        );
+        const securityAlerts = alertsSnapshot.size;
+
+        // Get total data shared (from shared_data collection)
+        let totalDataShared = 0;
+        const sharesSnapshot = await getDocs(collection(firestore, 'shared_data'));
+        sharesSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.fileSize) {
+            totalDataShared += data.fileSize;
+          }
+        });
+
+        // Format data shared
+        const formatBytes = (bytes: number) => {
+          if (bytes === 0) return '0 B';
+          const k = 1024;
+          const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + sizes[i];
+        };
+
+        // Get recent users
+        const recentUsersSnapshot = await getDocs(
+          query(collection(firestore, 'users'), where('status', '==', 'active'), where('role', 'in', ['admin', 'client']))
+        );
+        const users = recentUsersSnapshot.docs
+          .map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              name: data.displayName || data.firstName || data.username || 'Unknown',
+              email: data.email,
+              lastActive: 'Recently',
+              avatar: (data.displayName || data.firstName || data.username || data.email || '').charAt(0).toUpperCase(),
+              status: 'online',
+            };
+          })
+          .slice(0, 5);
+
+        setRecentUsers(users);
+
+        setStats([
+          { name: 'Total Users', value: totalUsers.toString(), icon: Users, change: '+0%', trend: 'up' },
+          { name: 'Active Policies', value: activePolicies.toString(), icon: Shield, change: '+0%', trend: 'up' },
+          { name: 'Security Alerts', value: securityAlerts.toString(), icon: AlertTriangle, change: '+0%', trend: 'down' },
+          { name: 'Data Shared', value: formatBytes(totalDataShared), icon: TrendingUp, change: '+0%', trend: 'up' },
+        ]);
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, []);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -64,111 +144,119 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
-            <Card key={stat.name} className="overflow-hidden transition-all hover:shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.name}
-                </CardTitle>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <stat.icon className="h-5 w-5 text-primary" />
-                </div>
+        {loading ? (
+          <div className="flex items-center justify-center h-96">
+            <p className="text-muted-foreground">Loading dashboard data...</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {stats.map((stat, idx) => (
+                <Card key={stat.name} className="overflow-hidden transition-all hover:shadow-lg border-0" style={{
+                  background: `linear-gradient(135deg, ${['#113738', '#0d5a5f', '#0a7c87', '#0a9db0'][idx]} 0%, ${['#0d5a5f', '#0a7c87', '#0a9db0', '#1a9fb5'][idx]} 100%)`
+                }}>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-white/80">
+                      {stat.name}
+                    </CardTitle>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                      <stat.icon className="h-5 w-5 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-white">{stat.value}</div>
+                    <p className="text-xs mt-1 font-bold text-red-500">
+                      LIVE
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle>Data Exposure Analysis</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Comparison of sensitive data fields exposed before and after implementing policies
+                </p>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className={`text-xs mt-1 ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                  {stat.change} from last month
-                </p>
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" className="text-sm" />
+                    <YAxis className="text-sm" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="before" fill="#dc2626" name="Before Policies" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="after" fill="#0a9db0" name="After Policies" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
-          ))}
-        </div>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Data Exposure Analysis</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Comparison of sensitive data fields exposed before and after implementing policies
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="name" className="text-sm" />
-                <YAxis className="text-sm" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Legend />
-                <Bar dataKey="before" fill="hsl(var(--destructive))" name="Before Policies" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="after" fill="hsl(var(--primary))" name="After Policies" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {/* Users List */}
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Recent Users
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {recentUsers.map((user, i) => (
-                  <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
-                    <div className="relative">
-                      <div className="h-10 w-10" />
-                      <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
-                        user.status === 'online' ? 'bg-green-500' : 
-                        user.status === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
-                      }`}></div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{user.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {user.lastActive}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {/* Users List */}
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Recent Users
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {recentUsers.map((user, i) => (
+                      <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
+                        <div className="relative">
+                          <div className="h-10 w-10 rounded-full bg-teal-600 text-white flex items-center justify-center font-semibold">{user.avatar}</div>
+                          <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
+                            user.status === 'online' ? 'bg-green-500' : 
+                            user.status === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
+                          }`}></div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{user.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {user.lastActive}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          {/* Threats Pie Chart */}
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5" />
-                Threat Distribution
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={threatPieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
+              {/* Threats Pie Chart */}
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5" />
+                    Threat Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={threatPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
                     {threatPieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
@@ -248,15 +336,17 @@ const Dashboard = () => {
                 <Line 
                   type="monotone" 
                   dataKey="threats" 
-                  stroke="hsl(var(--destructive))" 
+                  stroke="#0a9db0" 
                   strokeWidth={3}
-                  dot={{ r: 6, fill: "hsl(var(--destructive))" }}
-                  activeDot={{ r: 8, fill: "hsl(var(--destructive))" }}
+                  dot={{ r: 6, fill: "#0a9db0" }}
+                  activeDot={{ r: 8, fill: "#0a9db0" }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

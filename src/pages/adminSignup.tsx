@@ -19,7 +19,7 @@ const AdminSignup: React.FC = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
-  const [domain, setDomain] = useState<typeof domainOptions[number]>("IT");
+  const [domain, setDomain] = useState<typeof domainOptions[number] | "">("");
   const [customCategory, setCustomCategory] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -184,9 +184,12 @@ const AdminSignup: React.FC = () => {
       {/* Back to Home */}
       <Link to="/" className={`absolute top-4 left-4 z-50 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
         isDarkMode
-          ? "border-gray-700 bg-gray-900/70 hover:bg-gray-800 hover:border-blue-500 text-gray-100"
-          : "border-gray-300 bg-white/70 hover:bg-blue-50 hover:border-blue-600 text-gray-900"
-      }`}>
+          ? "border-gray-700 bg-gray-900/70 hover:bg-gray-800 text-gray-100"
+          : "border-gray-300 bg-white/70 hover:bg-gray-100 text-gray-900"
+      }`} style={{
+        boxShadow: '0 0 0 2px rgba(10, 157, 176, 0.3)',
+        borderColor: 'rgba(10, 157, 176, 0.5)'
+      }}>
         <ArrowLeft className="w-4 h-4" />
         Home
       </Link>
@@ -214,13 +217,13 @@ const AdminSignup: React.FC = () => {
           {/* Prerequisite note with link to Login */}
           <div className={`mb-4 p-3 rounded-md border text-sm ${
             isDarkMode
-              ? "border-blue-800/50 bg-blue-950/30 text-blue-200"
-              : "border-blue-300/50 bg-blue-50/50 text-blue-800"
+              ? "border-teal-700/50 bg-gradient-to-r from-teal-950/30 to-cyan-950/30 text-teal-200"
+              : "border-teal-300/50 bg-gradient-to-r from-teal-50/50 to-cyan-50/50 text-teal-800"
           }`}>
             <p>
               <strong>Note:</strong> Before proceeding with the registration, you must have a registered username and password. Please create one via the signup page if you haven't already done so.
               {" "}
-              <Link to="/login" className={`underline ml-1 ${isDarkMode ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"}`}>Go to Login/Signup</Link>
+              <Link to="/login" className={`underline ml-1 ${isDarkMode ? "text-teal-300 hover:text-teal-200" : "text-teal-600 hover:text-teal-700"}`}>Go to Login/Signup</Link>
             </p>
           </div>
 
@@ -230,22 +233,34 @@ const AdminSignup: React.FC = () => {
                 <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>First name</Label>
                 <div className="relative">
                   <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
-                  <Input className={`pl-10 border rounded-md transition-colors ${
+                  <Input className={`pl-10 border rounded-md transition-all focus:outline-none ${
                     isDarkMode
                       ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
                       : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
-                  }`} value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                  }`} value={firstName} onChange={(e) => setFirstName(e.target.value)} onFocus={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(10, 157, 176, 0.3)';
+                    e.currentTarget.style.borderColor = '#0a9db0';
+                  }} onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  }} required />
                 </div>
               </div>
               <div>
                 <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Last name</Label>
                 <div className="relative">
                   <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
-                  <Input className={`pl-10 border rounded-md transition-colors ${
+                  <Input className={`pl-10 border rounded-md transition-all focus:outline-none ${
                     isDarkMode
                       ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
                       : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
-                  }`} value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                  }`} value={lastName} onChange={(e) => setLastName(e.target.value)} onFocus={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(10, 157, 176, 0.3)';
+                    e.currentTarget.style.borderColor = '#0a9db0';
+                  }} onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  }} required />
                 </div>
               </div>
             </div>
@@ -256,7 +271,7 @@ const AdminSignup: React.FC = () => {
               <div className="relative">
                 <User className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
                 <Input
-                  className={`pl-10 border rounded-md transition-colors ${
+                  className={`pl-10 border rounded-md transition-all focus:outline-none ${
                     isDarkMode
                       ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
                       : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
@@ -264,6 +279,14 @@ const AdminSignup: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="username used during signup"
+                  onFocus={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(10, 157, 176, 0.3)';
+                    e.currentTarget.style.borderColor = '#0a9db0';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  }}
                   required
                 />
               </div>
@@ -274,11 +297,17 @@ const AdminSignup: React.FC = () => {
                 <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Name of your company</Label>
                 <div className="relative">
                   <Briefcase className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
-                  <Input className={`pl-10 border rounded-md transition-colors ${
+                  <Input className={`pl-10 border rounded-md transition-all focus:outline-none ${
                     isDarkMode
                       ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
                       : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
-                  }`} value={company} onChange={(e) => setCompany(e.target.value)} required />
+                  }`} value={company} onChange={(e) => setCompany(e.target.value)} onFocus={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(10, 157, 176, 0.3)';
+                    e.currentTarget.style.borderColor = '#0a9db0';
+                  }} onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  }} required />
                 </div>
               </div>
             </div>
@@ -289,14 +318,24 @@ const AdminSignup: React.FC = () => {
                 <select
                   value={domain}
                   onChange={(e) => setDomain(e.target.value as typeof domainOptions[number])}
-                  className={`w-full rounded-md border px-3 py-2 transition-colors ${
+                  className={`w-full rounded-md border px-3 py-2 transition-all focus:outline-none ${
                     isDarkMode
                       ? "bg-gray-900 text-gray-100 border-gray-700"
                       : "bg-white text-gray-900 border-gray-300"
                   }`}
+                  onFocus={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(10, 157, 176, 0.3)';
+                    e.currentTarget.style.borderColor = '#0a9db0';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  }}
+                  required
                 >
+                  <option value="" disabled>Select Functional Category</option>
                   {domainOptions.map((d) => (
-                    <option key={d} value={d}>
+                    <option key={d} value={d} className={isDarkMode ? "bg-gray-800 text-gray-100" : "bg-white text-gray-900"}>
                       {d}
                     </option>
                   ))}
@@ -309,7 +348,7 @@ const AdminSignup: React.FC = () => {
                 <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Specify functional category</Label>
                 <div className="relative">
                   <Input
-                    className={`pl-3 border rounded-md transition-colors ${
+                    className={`pl-3 border rounded-md transition-all focus:outline-none ${
                       isDarkMode
                         ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
                         : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
@@ -317,6 +356,14 @@ const AdminSignup: React.FC = () => {
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value)}
                     placeholder="Enter functional category"
+                    onFocus={(e) => {
+                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(10, 157, 176, 0.3)';
+                      e.currentTarget.style.borderColor = '#0a9db0';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                    }}
                   />
                 </div>
               </div>
@@ -326,11 +373,17 @@ const AdminSignup: React.FC = () => {
               <Label className={isDarkMode ? "text-gray-200" : "text-gray-700"}>Email</Label>
               <div className="relative">
                 <Mail className={`absolute left-3 top-3 h-4 w-4 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
-                <Input className={`pl-10 border rounded-md transition-colors ${
+                <Input className={`pl-10 border rounded-md transition-all focus:outline-none ${
                   isDarkMode
                     ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
                     : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
-                }`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                }`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} onFocus={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(10, 157, 176, 0.3)';
+                  e.currentTarget.style.borderColor = '#0a9db0';
+                }} onBlur={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                }} required />
               </div>
             </div>
 
@@ -343,7 +396,7 @@ const AdminSignup: React.FC = () => {
               </div>
               <div className="relative">
                 <Input
-                  className={`border rounded-md transition-colors ${
+                  className={`border rounded-md transition-all focus:outline-none ${
                     isDarkMode
                       ? "bg-gray-900 text-gray-100 border-gray-700 placeholder-gray-500"
                       : "bg-white text-gray-900 border-gray-300 placeholder-gray-400"
@@ -352,15 +405,23 @@ const AdminSignup: React.FC = () => {
                   value={googleDriveLink}
                   onChange={(e) => setGoogleDriveLink(e.target.value)}
                   placeholder="https://drive.google.com/..."
+                  onFocus={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(10, 157, 176, 0.3)';
+                    e.currentTarget.style.borderColor = '#0a9db0';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  }}
                   required
                 />
               </div>
               <div className={`mt-2 p-3 border rounded-md ${
                 isDarkMode
-                  ? "bg-blue-950/30 border-blue-800/50"
-                  : "bg-blue-50/50 border-blue-300/50"
+                  ? "bg-gradient-to-r from-teal-950/30 to-cyan-950/30 border-teal-700/50"
+                  : "bg-gradient-to-r from-teal-50/50 to-cyan-50/50 border-teal-300/50"
               }`}>
-                <p className={`text-xs ${isDarkMode ? "text-blue-200" : "text-blue-800"}`}>
+                <p className={`text-xs ${isDarkMode ? "text-teal-200" : "text-teal-800"}`}>
                   <strong>Instructions:</strong>
                   <br />1. Upload your verification documents to Google Drive
                   <br />2. Set sharing permissions to "Anyone with the link can view"

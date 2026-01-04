@@ -230,7 +230,7 @@ const SuperUsers = () => {
           </div>
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 text-white">
+              <Button className="hover:opacity-90 text-white" style={{ backgroundColor: '#113738' }}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add User (Firestore)
               </Button>

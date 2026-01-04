@@ -127,7 +127,7 @@ const ClientShare: React.FC = () => {
     <div className="space-y-6 pl-6 lg:pl-12">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Share Data Securely</h2>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 dark:text-slate-400">
             Upload and share data with controlled third-party access
           </p>
         </div>
@@ -148,11 +148,11 @@ const ClientShare: React.FC = () => {
                     accept="*/*"
                   />
                   <label htmlFor="file-upload-client" className="cursor-pointer">
-                    <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <Upload className="mx-auto h-12 w-12 text-muted-foreground dark:text-slate-400 mb-4" />
                     <p className="text-sm font-medium mb-2">
                       {file ? file.name : 'Click to upload or drag and drop'}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground dark:text-slate-400">
                       All file types accepted
                     </p>
                   </label>
@@ -163,7 +163,7 @@ const ClientShare: React.FC = () => {
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <div className="flex-1">
                       <p className="text-sm font-medium">{file.name}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground dark:text-slate-400">
                         {(file.size / 1024).toFixed(2)} KB
                       </p>
                     </div>
@@ -174,8 +174,8 @@ const ClientShare: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-lg border border-border">
                   <div>
-                    <Label className="text-base font-medium">Security Policy</Label>
-                    <p className="text-sm text-muted-foreground">Create or select a security policy for this share</p>
+                    <Label className="text-base font-medium dark:text-gray-200">Security Policy</Label>
+                    <p className="text-sm text-muted-foreground dark:text-slate-400">Create or select a security policy for this share</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Dialog open={isPolicyDialogOpen} onOpenChange={setIsPolicyDialogOpen}>
@@ -191,7 +191,7 @@ const ClientShare: React.FC = () => {
                             <div key={idx} className="flex items-center justify-between p-3 border rounded">
                               <div>
                                 <div className="font-medium">{p.policyName}</div>
-                                <div className="text-xs text-muted-foreground">{p.policyCategory}</div>
+                                <div className="text-xs text-muted-foreground dark:text-slate-400">{p.policyCategory}</div>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Button
@@ -210,7 +210,7 @@ const ClientShare: React.FC = () => {
                       </div>
                     </DialogContent>
                   </Dialog>
-                  <Button onClick={() => setIsClientDialogOpen(true)} disabled={!policy} className={`${!policy ? 'opacity-50 pointer-events-none' : ''}`}>Choose Recipients</Button>
+                  <Button onClick={() => setIsClientDialogOpen(true)} disabled={!policy} className={`${!policy ? 'opacity-50 pointer-events-none' : ''} text-white hover:opacity-90`} style={{ backgroundColor: '#113738' }}>Choose Recipients</Button>
                     </div>
                 </div>
 
@@ -226,7 +226,7 @@ const ClientShare: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex justify-end">
-                      <Button onClick={() => setIsClientDialogOpen(true)}>Choose Recipients</Button>
+                      <Button onClick={() => setIsClientDialogOpen(true)} style={{ backgroundColor: '#113738' }} className="text-white hover:opacity-90">Choose Recipients</Button>
                     </div>
                   </>
                 ) : (
@@ -238,7 +238,8 @@ const ClientShare: React.FC = () => {
               <Button
                 onClick={handleShare}
                 disabled={!file || isSharing}
-                className="w-full bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90"
+                className="w-full text-white hover:opacity-90"
+                style={{ backgroundColor: '#113738' }}
               >
                 {isSharing ? (
                   <>Processing...</>
@@ -406,7 +407,7 @@ const ClientShare: React.FC = () => {
                 <Button variant="outline" onClick={() => { setIsClientDialogOpen(false); setSelectedClientIds([]); }}>
                   Cancel
                 </Button>
-                <Button onClick={confirmClientShare} disabled={isSharing}>
+                <Button onClick={confirmClientShare} disabled={isSharing} style={{ backgroundColor: '#113738' }} className="text-white hover:opacity-90">
                   {isSharing ? 'Sharing...' : 'Share to Selected'}
                 </Button>
               </div>

@@ -131,14 +131,14 @@ const ClientPolicies: React.FC = () => {
     <div className="p-6 space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Security Policies</h2>
-        <p className="text-sm text-muted-foreground">View data protection and access control policies</p>
+        <p className="text-sm text-muted-foreground dark:text-slate-400">View data protection and access control policies</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {policies.length === 0 ? (
           <Card className="md:col-span-2 lg:col-span-3">
             <CardContent className="pt-6">
-              <div className="text-center text-muted-foreground">No policies available</div>
+              <div className="text-center text-muted-foreground dark:text-slate-400">No policies available</div>
             </CardContent>
           </Card>
         ) : (
@@ -161,11 +161,11 @@ const ClientPolicies: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium">Category</p>
+                  <p className="text-xs text-muted-foreground dark:text-slate-400 font-medium">Category</p>
                   <p className="text-sm">{policy.policyCategory || 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium">Description</p>
+                  <p className="text-xs text-muted-foreground dark:text-slate-400 font-medium">Description</p>
                   <p className="text-sm line-clamp-2">{policy.policyDescription}</p>
                 </div>
                 <Button

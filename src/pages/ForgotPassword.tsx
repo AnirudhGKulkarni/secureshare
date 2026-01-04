@@ -64,7 +64,7 @@ const ForgotPassword: React.FC = () => {
 
             {/* Action Button */}
             <Link to="/login">
-              <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 transition-opacity">
+              <Button className="w-full hover:opacity-90 transition-opacity text-white" style={{ backgroundColor: '#113738' }}>
                 Back to Login
               </Button>
             </Link>

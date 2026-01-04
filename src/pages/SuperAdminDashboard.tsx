@@ -146,18 +146,20 @@ const SuperAdminDashboard = () => {
               return { name: 'System Activity', value: `${percent}%`, icon: Activity };
             })(),
           ].map((stat, i) => (
-            <Card key={i} className="overflow-hidden transition-all hover:shadow-xl">
+            <Card key={i} className="overflow-hidden transition-all hover:shadow-xl border-0" style={{
+              background: `linear-gradient(135deg, ${['#113738', '#0d5a5f', '#0a7c87', '#0a9db0'][i]} 0%, ${['#0d5a5f', '#0a7c87', '#0a9db0', '#1a9fb5'][i]} 100%)`
+            }}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-medium text-white/80">
                   {stat.name}
                 </CardTitle>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <stat.icon className="h-5 w-5 text-primary" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                  <stat.icon className="h-5 w-5 text-white" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs mt-1 text-muted-foreground">Live</p>
+                <div className="text-2xl font-bold text-white">{stat.value}</div>
+                <p className="text-xs mt-1 text-red-500">Live</p>
               </CardContent>
             </Card>
           ))}
@@ -179,8 +181,8 @@ const SuperAdminDashboard = () => {
                   <YAxis className="text-sm" />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="admins" fill="#3b82f6" name="Admins" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="clients" fill="#8b5cf6" name="Clients" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="admins" fill="#0a9db0" name="Admins" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="clients" fill="#113738" name="Clients" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

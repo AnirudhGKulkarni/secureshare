@@ -34,7 +34,7 @@ const ClientSecurity: React.FC = () => {
     <div className="p-6 space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Security</h2>
-        <p className="text-sm text-muted-foreground">Manage security settings for your account</p>
+        <p className="text-sm text-muted-foreground dark:text-slate-400">Manage security settings for your account</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -46,7 +46,7 @@ const ClientSecurity: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <Label>Login Notifications</Label>
-                <div className="text-xs text-muted-foreground">Receive alerts for new device logins</div>
+                <div className="text-xs text-muted-foreground dark:text-slate-400">Receive alerts for new device logins</div>
               </div>
               <Switch
                 checked={loginAlerts}
@@ -84,7 +84,7 @@ const ClientSecurity: React.FC = () => {
     Reset Defaults
   </Button>
 
-  <Button className="text-black dark:text-white">
+  <Button className="text-white hover:opacity-90" style={{ backgroundColor: '#113738' }}>
     Save Changes
   </Button>
 </div>

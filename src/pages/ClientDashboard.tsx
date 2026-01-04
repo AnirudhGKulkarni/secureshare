@@ -152,7 +152,6 @@ const ClientDashboard: React.FC = () => {
   const { currentUser, profile, loading, logout, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
-  // local copy of profile for immediate UI edits
   const [localProfile, setLocalProfile] = useState<any>(profile ?? {});
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -161,7 +160,9 @@ const ClientDashboard: React.FC = () => {
   const [fileSensitivityData, setFileSensitivityData] = useState<FileSensitivityChartDatum[]>(() => buildEmptySensitivityData());
   const [loginActivityData, setLoginActivityData] = useState<LoginActivityDatum[]>(() => buildLastSevenDayBuckets());
   const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
-  // Simplify recent activity UI: no scroll arrows or scroll-state tracking.
+  const activityScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
     setLocalProfile(profile ?? {});
@@ -346,7 +347,7 @@ const ClientDashboard: React.FC = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Track recent activity (last 5 actions)
+  // Track recent activity (all actions, not limited)
   useEffect(() => {
     if (!currentUser) return;
 
@@ -354,7 +355,7 @@ const ClientDashboard: React.FC = () => {
       collection(firestore, 'audit_logs'),
       where('userId', '==', currentUser.uid),
       orderBy('timestamp', 'desc'),
-      limit(3)
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(logsQuery, (snapshot) => {
@@ -377,6 +378,39 @@ const ClientDashboard: React.FC = () => {
 
     return () => unsubscribe();
   }, [currentUser]);
+
+  // Update scroll button visibility
+  useEffect(() => {
+    const updateScrollButtons = () => {
+      if (activityScrollRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = activityScrollRef.current;
+        setCanScrollLeft(scrollLeft > 0);
+        setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+      }
+    };
+
+    const el = activityScrollRef.current;
+    if (el) {
+      updateScrollButtons();
+      el.addEventListener('scroll', updateScrollButtons);
+      window.addEventListener('resize', updateScrollButtons);
+
+      return () => {
+        el.removeEventListener('scroll', updateScrollButtons);
+        window.removeEventListener('resize', updateScrollButtons);
+      };
+    }
+  }, [recentActivity]);
+
+  const scrollActivity = (direction: 'left' | 'right') => {
+    if (activityScrollRef.current) {
+      const scrollAmount = 300;
+      activityScrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -459,81 +493,108 @@ const ClientDashboard: React.FC = () => {
         {/* MAIN NAVBAR is provided globally; page-level duplicate removed */}
 
       {/* MAIN */}
-      <main className="flex-1 p-6 overflow-auto">
-        <div className="max-w-5xl mx-auto">
+      <main className="flex-1 p-4 md:p-6 overflow-auto bg-background">
+        <div className="max-w-6xl mx-auto">
           {/* Main area */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Welcome, {localProfile?.firstName ?? "Client"}!</CardTitle>
-                <CardDescription>Overview of your account and quick actions.</CardDescription>
+            <Card className="border-0 shadow-md bg-card">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-2xl md:text-3xl font-bold text-foreground">Welcome, {localProfile?.firstName ?? localProfile?.username ?? "Client"}!</CardTitle>
+                <CardDescription className="text-muted-foreground dark:text-slate-400 text-base">Overview of your account and quick actions.</CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 pt-2">
                 {/* Recent Activity (mini cards with horizontal scroll) */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Activity className="h-4 w-4 text-primary" />
-                    <h3 className="font-semibold text-foreground">Recent Activity</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-foreground/70" />
+                    <h3 className="font-semibold text-lg text-foreground">Recent Activity</h3>
                   </div>
 
                   <div className="relative">
-                    {/* hide native scrollbar and provide left/right scroll buttons */}
                     <style>{`.hide-scrollbar::-webkit-scrollbar{display:none;} .hide-scrollbar{-ms-overflow-style:none; scrollbar-width:none;}`}</style>
-                    <div
-                      className="flex gap-3 overflow-x-auto py-2 px-1 hide-scrollbar"
-                      style={{ scrollSnapType: 'x mandatory' }}
-                    >
-                      {recentActivity.length > 0 ? (
-                        recentActivity.map((activity) => {
-                          const Icon = getActivityIcon(activity.action);
-                          return (
-                            <div
-                              key={activity.id}
-                              className="inline-flex flex-col w-64 min-w-[16rem] p-3 rounded-md border bg-secondary/20"
-                              style={{ scrollSnapAlign: 'start' }}
-                            >
-                              <div className="flex items-start gap-3">
-                                <Icon className="h-5 w-5 text-muted-foreground mt-1" />
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-foreground">
-                                    {activity.action}
-                                  </div>
-                                  {activity.resource && (
-                                    <div className="text-xs text-muted-foreground">{activity.resource}</div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="mt-3 text-xs text-muted-foreground">{getRelativeTime(activity.timestamp)}</div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="text-sm text-muted-foreground p-3 rounded-md border">No recent activity</div>
-                      )}
-                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* Left scroll button */}
+                      <button
+                        onClick={() => scrollActivity('left')}
+                        disabled={!canScrollLeft}
+                        className="flex-shrink-0 p-2 rounded-md hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Scroll left"
+                      >
+                        <ChevronRight className="h-5 w-5 rotate-180" />
+                      </button>
 
-                    {/* Scroll arrow buttons removed — simplified UI shows only up to 3 items. */}
+                      {/* Activity cards container */}
+                      <div
+                        ref={activityScrollRef}
+                        className="flex gap-3 overflow-x-auto flex-1 py-2 px-1 hide-scrollbar"
+                        style={{ scrollSnapType: 'x mandatory' }}
+                      >
+                        {recentActivity.length > 0 ? (
+                          recentActivity.map((activity) => {
+                            const Icon = getActivityIcon(activity.action);
+                            return (
+                              <div
+                                key={activity.id}
+                              className="inline-flex flex-col w-72 min-w-[18rem] p-4 rounded-lg bg-secondary/50 hover:bg-secondary text-foreground transition-colors"
+                              style={{ 
+                                scrollSnapAlign: 'start',
+                                border: '2px solid',
+                                borderImage: 'linear-gradient(135deg, #113738 0%, #0a9db0 100%) 1'
+                              }}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <Icon className="h-5 w-5 text-foreground/70 mt-1 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-semibold text-foreground truncate">
+                                      {activity.action}
+                                    </div>
+                                    {activity.resource && (
+                                      <div className="text-xs text-foreground/60 truncate">{activity.resource}</div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="mt-2 text-xs text-foreground/50">{getRelativeTime(activity.timestamp)}</div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-sm text-foreground/60 p-4 rounded-lg border border-border bg-secondary/30 w-full">No recent activity</div>
+                        )}
+                      </div>
+
+                      {/* Right scroll button */}
+                      <button
+                        onClick={() => scrollActivity('right')}
+                        disabled={!canScrollRight}
+                        className="flex-shrink-0 p-2 rounded-md hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Scroll right"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {/* Simple Alerts */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Bell className="h-4 w-4 text-primary" />
-                    <h3 className="font-semibold">Alerts</h3>
-                    <Badge variant="secondary" className="ml-auto">{alerts.length}</Badge>
+                <div className="space-y-3 p-4 rounded-lg border-0" style={{
+                  background: 'linear-gradient(135deg, #113738 0%, #0d5a5f 100%)'
+                }}>
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-white/80" />
+                    <h3 className="font-semibold text-lg text-white">Alerts</h3>
+                    <Badge className="ml-auto bg-white/25 text-white font-semibold">{alerts.length}</Badge>
                   </div>
                   <div className="space-y-2">
                     {alerts.length > 0 ? (
                       alerts.map((alert) => (
-                        <div key={alert.id} className={`flex items-center gap-3 p-3 rounded-md border ${getAlertColor(alert.type)}`}>
-                          <div className={`h-2 w-2 rounded-full ${getAlertDotColor(alert.type)}`} />
-                          <div className="text-sm">{alert.message}</div>
+                        <div key={alert.id} className={`flex items-center gap-3 p-3 rounded-lg border border-white/20 bg-white/10`}>
+                          <div className={`h-3 w-3 rounded-full flex-shrink-0 ${getAlertDotColor(alert.type)}`} />
+                          <div className="text-sm text-white/90">{alert.message}</div>
                         </div>
                       ))
                     ) : (
-                      <div className="text-sm text-muted-foreground p-3 rounded-md border">
+                      <div className="text-sm text-white/70 p-3 rounded-lg border border-white/20 bg-white/10 w-full">
                         No alerts at the moment
                       </div>
                     )}
@@ -543,8 +604,8 @@ const ClientDashboard: React.FC = () => {
                 {/* Charts Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Sensitivity Pie Chart */}
-                  <div className="p-4 rounded-md border">
-                    <div className="text-sm font-semibold mb-3">File Sensitivity</div>
+                  <div className="p-4 rounded-lg border border-border bg-card">
+                    <div className="text-sm font-semibold mb-4 text-foreground">File Sensitivity</div>
                     <div className="h-48">
                       {hasFileSensitivityData ? (
                         <ResponsiveContainer width="100%" height="100%">
@@ -562,20 +623,20 @@ const ClientDashboard: React.FC = () => {
                                 <Cell key={entry.key} fill={entry.color} />
                               ))}
                             </Pie>
-                            <Tooltip />
+                            <Tooltip contentStyle={{ backgroundColor: '#f5f5f5', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#000' }} />
                           </PieChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        <div className="flex h-full items-center justify-center text-sm text-foreground/60">
                           No file activity yet
                         </div>
                       )}
                     </div>
-                    <div className="flex justify-center gap-4 mt-2 text-xs">
+                    <div className="flex justify-center gap-4 mt-4 text-xs flex-wrap">
                       {fileSensitivityData.map((entry) => (
-                        <div key={entry.key} className="flex items-center gap-1">
+                        <div key={entry.key} className="flex items-center gap-2">
                           <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: entry.color }} />
-                          <span>
+                          <span className="text-foreground/80">
                             {entry.name} ({entry.value})
                           </span>
                         </div>
@@ -584,20 +645,22 @@ const ClientDashboard: React.FC = () => {
                   </div>
 
                   {/* Login Activity Bar Chart */}
-                  <div className="p-4 rounded-md border">
-                    <div className="text-sm font-semibold mb-3">Login Activity (Last 7 days)</div>
+                  <div className="p-4 rounded-lg border-0" style={{
+                    background: 'linear-gradient(135deg, #113738 0%, #0d5a5f 100%)'
+                  }}>
+                    <div className="text-sm font-semibold mb-4 text-white">Login Activity (Last 7 days)</div>
                     <div className="h-48">
                       {hasLoginActivity ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={loginActivityData}>
-                            <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                            <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                            <Tooltip />
-                            <Bar dataKey="logins" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#ffffff' }} />
+                            <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#ffffff' }} />
+                            <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} />
+                            <Bar dataKey="logins" fill="#0a9db0" radius={[4, 4, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        <div className="flex h-full items-center justify-center text-sm text-white/60">
                           No login events in the last 7 days
                         </div>
                       )}
@@ -606,7 +669,10 @@ const ClientDashboard: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <Button variant="outline" onClick={() => navigate("/client/policies")}>View Policies</Button>
+                  <Button onClick={() => navigate("/client/policies")} className="text-white font-medium" style={{
+                    background: 'linear-gradient(135deg, #113738 0%, #0a9db0 100%)',
+                    border: 'none'
+                  }}>View Policies</Button>
                 </div>
               </CardContent>
             </Card>

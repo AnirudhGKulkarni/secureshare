@@ -1,9 +1,15 @@
-import { Shield } from 'lucide-react';
+import { Shield, Facebook, Linkedin, Instagram } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const DashboardFooter = () => {
   const { profile } = useAuth();
   const isSuperAdmin = profile?.role === 'super_admin';
+
+  const socialLinks = [
+    { icon: Facebook, label: "Facebook", url: "https://facebook.com" },
+    { icon: Linkedin, label: "LinkedIn", url: "https://linkedin.com" },
+    { icon: Instagram, label: "Instagram", url: "https://instagram.com" }
+  ];
 
   return (
     <footer className="bg-card border-t border-border text-muted-foreground py-8 px-6 mt-8">
@@ -70,20 +76,17 @@ export const DashboardFooter = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-4">
               {/* Social Links */}
-              <div className="flex items-center gap-3">
-                {[
-                  { icon: "f", label: "Facebook" },
-                  { icon: "in", label: "LinkedIn" },
-                  { icon: "𝕏", label: "Twitter" },
-                  { icon: "📷", label: "Instagram" }
-                ].map((social) => (
+            <div className="flex items-center gap-3">
+                {socialLinks.map((social) => (
                   <a
                     key={social.label}
-                    href="#"
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     title={social.label}
-                    className={`${isSuperAdmin ? 'text-slate-300 border-slate-700 hover:text-blue-300 hover:border-blue-400 hover:bg-blue-900/20' : 'text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/10'} w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-300 text-xs`}
+                    className={`${isSuperAdmin ? 'text-slate-300 border-slate-700 hover:text-blue-300 hover:border-blue-400 hover:bg-blue-900/20' : 'text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/10'} w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-300`}
                   >
-                    {social.icon}
+                    <social.icon className="h-4 w-4" />
                   </a>
                 ))}
               </div>

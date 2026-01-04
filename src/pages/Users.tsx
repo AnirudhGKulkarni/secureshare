@@ -246,11 +246,26 @@ const Users = () => {
     return option ? option.label : role;
   };
 
-  const getRoleBadgeVariant = (role: string) => {
+  const getRoleBadgeStyle = (role: string) => {
     switch (role) {
-      case 'admin': return 'default';
-      case 'client': return 'secondary';
-      default: return 'secondary';
+      case 'admin':
+        return {
+          backgroundColor: '#113738',
+          color: '#ffffff',
+          borderColor: '#113738'
+        };
+      case 'client':
+        return {
+          backgroundColor: '#0a9db0',
+          color: '#ffffff',
+          borderColor: '#0a9db0'
+        };
+      default:
+        return {
+          backgroundColor: '#0a9db0',
+          color: '#ffffff',
+          borderColor: '#0a9db0'
+        };
     }
   };
 
@@ -280,7 +295,8 @@ const Users = () => {
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button
-                className="bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90"
+                className="text-white hover:opacity-90"
+                style={{ backgroundColor: '#113738' }}
                 onClick={() => {
                   setEditingUser(null);
                   setFormData({ firstName: '', lastName: '', email: '', role: 'client' });
@@ -471,7 +487,7 @@ const Users = () => {
                       <td className="px-4 py-4 text-sm font-medium">{user.firstName} {user.lastName}</td>
                       <td className="px-4 py-4 text-sm text-muted-foreground">{user.email}</td>
                       <td className="px-4 py-4">
-                        <Badge variant={getRoleBadgeVariant(user.role)}>{getRoleDisplay(user.role)}</Badge>
+                        <Badge style={getRoleBadgeStyle(user.role)}>{getRoleDisplay(user.role)}</Badge>
                       </td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex justify-end gap-2">

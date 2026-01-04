@@ -97,7 +97,7 @@ const ClientProfile: React.FC = () => {
                     aria-label={showPassword ? "Hide password" : "Show password"}
                     title={showPassword ? "Hide password" : "Show password"}
                     onClick={() => setShowPassword((s) => !s)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-slate-200"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -107,11 +107,11 @@ const ClientProfile: React.FC = () => {
 
             <div className="flex justify-end gap-2">
               {!isEditing ? (
-                <Button onClick={() => setIsEditing(true)} type="button">Edit</Button>
+                <Button onClick={() => setIsEditing(true)} type="button" style={{ backgroundColor: '#113738' }} className="text-white hover:opacity-90">Edit</Button>
               ) : (
                 <>
                   <Button variant="outline" onClick={() => { setLocalProfile(profile ?? {}); setIsEditing(false); }} type="button">Cancel</Button>
-                  <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : "Save changes"}</Button>
+                  <Button type="submit" disabled={isSaving} style={{ backgroundColor: '#113738' }} className="text-white hover:opacity-90">{isSaving ? "Saving..." : "Save changes"}</Button>
                 </>
               )}
             </div>

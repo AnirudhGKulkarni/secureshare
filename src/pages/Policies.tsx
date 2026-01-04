@@ -344,7 +344,7 @@ const Policies = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <Button onClick={openCreate} className="bg-gradient-to-r from-primary to-accent-foreground hover:opacity-90">
+            <Button onClick={openCreate} className="text-white hover:opacity-90" style={{ backgroundColor: '#113738' }}>
               <ShieldPlus className="mr-2 h-4 w-4" />
               Create Policy
             </Button>
