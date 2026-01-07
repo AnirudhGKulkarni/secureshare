@@ -3,10 +3,9 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 // avatar removed per user request
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Search, Paperclip, MoreVertical, Send, Shield, Smile, Mic, Star, Download, Paintbrush } from 'lucide-react';
+import { MessageCircle, Search, MoreVertical, Send, Shield, Smile, Star, Download, Paintbrush, Lock } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { firestore, storage } from '@/lib/firebase';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { firestore } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
 /**
@@ -61,15 +60,7 @@ const Chat = () => {
   const [search, setSearch] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const [attachOpen, setAttachOpen] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const mediaRecorderRef = useRef<any>(null);
-  const audioChunksRef = useRef<any[]>([]);
   const [chatTheme, setChatTheme] = useState<{bg?:string}>({});
   const [menuOpen, setMenuOpen] = useState(false);
   const bgInputRef = useRef<HTMLInputElement | null>(null);
@@ -84,10 +75,12 @@ const Chat = () => {
         const q = query(collection(firestore, 'users'), where('role', 'in', ['client', 'admin']));
         const snaps = await getDocs(q);
         const loaded = snaps.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
+        
         // ensure current user is pinned as a self-chat at top
         const me = { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email || 'Me', isMe: true };
         // merge, removing any duplicate of current user from loaded
         const others = loaded.filter((c) => c.uid !== currentUser.uid);
+        
         const all = [me, ...others];
         setContacts(all);
       } catch (e) {
@@ -106,6 +99,18 @@ const Chat = () => {
 
     // Clear messages immediately when switching conversations to avoid cross-chat temps
     setMessages([]);
+
+    // Self Chat mode - privacy restriction: only show messages where both from and to are current user
+    if (selected.isMe) {
+      const coll = collection(firestore, 'messages');
+      const q = query(coll, where('from', '==', currentUser.uid), where('to', '==', currentUser.uid), orderBy('timestamp', 'asc'));
+      const unsub = onSnapshot(q, (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        const annotated = docs.map((m: any) => ({ ...m, timestampText: m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '' }));
+        setMessages(annotated);
+      }, (e) => console.warn('self-chat messages listen', e));
+      return () => unsub();
+    }
 
     const coll = collection(firestore, 'messages');
     // Query messages where current user participates (requires messages to include `participants` array)
@@ -134,7 +139,8 @@ const Chat = () => {
   const sendMessage = async () => {
     if (!text.trim() || !currentUser || !selected) return;
     const content = text.trim();
-    // optimistic
+    
+    // Regular message
     const convoId = [currentUser.uid, selected.uid].sort().join('_');
     const temp = { id: `temp-${Date.now()}`, from: currentUser.uid, to: selected.uid, content, convoId, participants: [currentUser.uid, selected.uid], timestampText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), _temp: true };
     setMessages((s) => [...s, temp]);
@@ -146,120 +152,15 @@ const Chat = () => {
     }
   };
 
-  const sendFile = async (file: File) => {
-    if (!currentUser || !selected || !file) return;
-    try {
-      setUploading(true);
-      const convoId = [currentUser.uid, selected.uid].sort().join('_');
-      const path = `messages/${convoId}/${Date.now()}_${file.name}`;
-      const sref = storageRef(storage, path);
-      const uploadTask = uploadBytesResumable(sref, file);
-      uploadTask.on('state_changed', null, (err) => {
-        console.warn('upload err', err);
-        setUploading(false);
-      }, async () => {
-        const url = await getDownloadURL(uploadTask.snapshot.ref);
-        await addDoc(collection(firestore, 'messages'), {
-          from: currentUser.uid,
-          to: selected.uid,
-          content: file.name,
-          file: { url, name: file.name, type: file.type, size: file.size },
-          timestamp: serverTimestamp(),
-          participants: [currentUser.uid, selected.uid],
-          convoId,
-          messageType: 'file'
-        });
-        setUploading(false);
-      });
-    } catch (e) {
-      console.warn('file send error', e);
-      setUploading(false);
-    }
-  };
-
-  // Attachment and helper utilities
-  const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-  const allowedTypes = [
-    'application/pdf',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'image/',
-    'audio/',
-    'video/'
-  ];
-
-  const isAllowedType = (file: File) => {
-    if (!file.type) return false;
-    return allowedTypes.some(t => t.endsWith('/') ? file.type.startsWith(t) : file.type === t);
-  };
-
-  const openAttach = () => setAttachOpen(true);
-  const closeAttach = () => setAttachOpen(false);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f) handleAttachFile(f);
-  };
-
-  const handleAttachFile = (f: File) => {
-    if (f.size > MAX_SIZE) {
-      alert('You cannot share a file more than 5MB in chat kindly use the main sharing window of Share data');
-      return;
-    }
-    if (!isAllowedType(f)) {
-      alert('This file type is not allowed in chat');
-      return;
-    }
-    sendFile(f);
-    closeAttach();
-  };
-
   const toggleEmoji = () => setShowEmoji(s => !s);
   const insertEmoji = (em: string) => setText(t => t + em);
-
-  const startRecording = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('Recording not supported in this browser');
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new (window as any).MediaRecorder(stream);
-      mediaRecorderRef.current = mr;
-      audioChunksRef.current = [];
-      mr.ondataavailable = (e: any) => audioChunksRef.current.push(e.data);
-      mr.onstop = async () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const file = new File([blob], `voice_${Date.now()}.webm`, { type: blob.type });
-        await sendFile(file);
-      };
-      mr.start();
-      setRecording(true);
-    } catch (err) {
-      console.warn('rec start', err);
-    }
-  };
-
-  const stopRecording = () => {
-    const mr = mediaRecorderRef.current;
-    if (mr && mr.state !== 'inactive') mr.stop();
-    setRecording(false);
-  };
-
-  const toggleRecording = () => {
-    if (recording) stopRecording(); else startRecording();
-  };
 
   const exportChat = () => {
     if (!selected) return;
     const lines = messages.map((m) => {
       const who = m.from === currentUser?.uid ? 'Me' : (selected.displayName || selected.username || selected.email || selected.uid);
       const time = m.timestampText || '';
-      const content = m.messageType === 'file' && m.file ? `[file] ${m.file.name} -> ${m.file.url}` : m.content;
+      const content = m.content;
       return `${who} (${time}): ${content}`;
     }).join('\n');
     const blob = new Blob([`Chat with ${selected.displayName || selected.username || selected.email}\n\n${lines}`], { type: 'text/plain' });
@@ -308,29 +209,14 @@ const Chat = () => {
         <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
           <div className={`relative max-w-[70%] px-4 py-2 rounded-lg shadow-sm ${
             isMe 
-              ? 'bg-green-500 text-white' 
+              ? 'bg-green-500 text-white'
               : (isDarkMode ? 'bg-gray-700 text-gray-100' : 'bg-gray-100 text-gray-900')
           }`}>
             <button onClick={() => toggleStar(m)} title="Star" className={`absolute -top-3 right-0 p-1 rounded ${m.starred ? 'text-yellow-400' : 'text-muted-foreground'}`}>
               <Star className="h-4 w-4" />
             </button>
-            {m.messageType === 'file' && m.file ? (
-              <div className="flex flex-col gap-2">
-                {m.file.type?.startsWith('image') ? (
-                  <img src={m.file.url} alt={m.file.name} className="max-h-56 rounded" />
-                ) : (
-                  <a href={m.file.url} target="_blank" rel="noreferrer" className="underline">
-                    {m.file.name}
-                  </a>
-                )}
-                <div className="text-xs mt-1 text-right opacity-70">{m.timestampText || ''}</div>
-              </div>
-            ) : (
-              <>
-                <div className="whitespace-pre-wrap">{m.content}</div>
-                <div className="text-xs mt-1 text-right opacity-70">{m.timestampText || ''}</div>
-              </>
-            )}
+            <div className="whitespace-pre-wrap">{m.content}</div>
+            <div className="text-xs mt-1 text-right opacity-70">{m.timestampText || ''}</div>
           </div>
         </div>
       );
@@ -376,20 +262,45 @@ const Chat = () => {
                         ? `${selected?.uid === c.uid ? 'bg-gray-700' : 'hover:bg-gray-700'} text-gray-100` 
                         : `${selected?.uid === c.uid ? 'bg-gray-100' : 'hover:bg-gray-50'} text-gray-900`
                     }`}>
-                      <div className={`h-10 w-10 flex-shrink-0 rounded-full flex items-center justify-center ${
-                        isDarkMode ? 'bg-teal-600' : 'bg-teal-100'
+                      <div className={`h-10 w-10 flex-shrink-0 rounded-full flex items-center justify-center relative ${
+                        c.isMe
+                          ? (isDarkMode ? 'bg-green-600' : 'bg-green-100')
+                          : (c.role === 'admin' || c.role === 'super_admin')
+                            ? (isDarkMode ? 'bg-purple-600' : 'bg-purple-100')
+                            : (isDarkMode ? 'bg-teal-600' : 'bg-teal-100')
                       }`}>
-                        <span className={isDarkMode ? 'text-white text-sm font-semibold' : 'text-teal-900 text-sm font-semibold'}>
-                          {(c.displayName?.[0] || c.email?.[0] || 'U').toUpperCase()}
-                        </span>
+                        {c.isMe ? (
+                          <Lock className={`h-5 w-5 ${
+                            isDarkMode ? 'text-white' : 'text-green-900'
+                          }`} />
+                        ) : (c.role === 'admin' || c.role === 'super_admin') ? (
+                          <Shield className={`h-5 w-5 ${
+                            isDarkMode ? 'text-white' : 'text-purple-900'
+                          }`} />
+                        ) : (
+                          <span className={isDarkMode ? 'text-white text-sm font-semibold' : 'text-teal-900 text-sm font-semibold'}>
+                            {(c.displayName?.[0] || c.email?.[0] || 'U').toUpperCase()}
+                          </span>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <div className={`truncate font-medium ${
-                            isDarkMode ? 'text-gray-100' : 'text-gray-900'
-                          }`}>{c.displayName || c.username || c.email} {c.isMe ? <span className="text-xs text-muted-foreground">(self)</span> : null}</div>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className={`truncate font-medium ${
+                              isDarkMode ? 'text-gray-100' : 'text-gray-900'
+                            }`}>{c.displayName || c.username || c.email} {c.isMe ? <span className="text-xs text-muted-foreground">(private notes)</span> : null}</div>
+                            {!c.isMe && c.role && (
+                              <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded ${
+                                c.role === 'admin' || c.role === 'super_admin'
+                                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                              }`}>
+                                {c.role === 'admin' || c.role === 'super_admin' ? 'Admin' : 'Client'}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground truncate">{c.title || ''}</div>
+                        <div className="text-xs text-muted-foreground truncate">{c.isMe ? 'Your private space for personal notes' : (c.title || '')}</div>
                       </div>
                     </button>
                   ))}
@@ -406,17 +317,47 @@ const Chat = () => {
               }`}>
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`h-10 w-10 flex-shrink-0 rounded-full flex items-center justify-center ${
-                    isDarkMode ? 'bg-teal-600' : 'bg-teal-100'
+                    selected?.isMe
+                      ? (isDarkMode ? 'bg-green-600' : 'bg-green-100')
+                      : (selected?.role === 'admin' || selected?.role === 'super_admin')
+                        ? (isDarkMode ? 'bg-purple-600' : 'bg-purple-100')
+                        : (isDarkMode ? 'bg-teal-600' : 'bg-teal-100')
                   }`}>
-                    <span className={isDarkMode ? 'text-white text-sm font-semibold' : 'text-teal-900 text-sm font-semibold'}>
-                      {(selected?.displayName?.[0] || selected?.email?.[0] || 'C').toUpperCase()}
-                    </span>
+                    {selected?.isMe ? (
+                      <Lock className={`h-5 w-5 ${
+                        isDarkMode ? 'text-white' : 'text-green-900'
+                      }`} />
+                    ) : (selected?.role === 'admin' || selected?.role === 'super_admin') ? (
+                      <Shield className={`h-5 w-5 ${
+                        isDarkMode ? 'text-white' : 'text-purple-900'
+                      }`} />
+                    ) : (
+                      <span className={isDarkMode ? 'text-white text-sm font-semibold' : 'text-teal-900 text-sm font-semibold'}>
+                        {(selected?.displayName?.[0] || selected?.email?.[0] || 'C').toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <div className="min-w-0">
-                    <div className={`font-medium truncate ${
-                      isDarkMode ? 'text-gray-100' : 'text-gray-900'
-                    }`}>{selected?.displayName || selected?.email || 'Select a chat'}</div>
-                      <div className="text-xs text-muted-foreground">{selected ? (selected.status || 'Active') : ''}</div>
+                    <div className="flex items-center gap-2">
+                      <div className={`font-medium truncate ${
+                        isDarkMode ? 'text-gray-100' : 'text-gray-900'
+                      }`}>{selected?.displayName || selected?.email || 'Select a chat'}</div>
+                      {selected && selected.isMe && (
+                        <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                          🔒 Private Notes
+                        </span>
+                      )}
+                      {selected && !selected.isMe && selected.role && (
+                        <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded ${
+                          selected.role === 'admin' || selected.role === 'super_admin'
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                        }`}>
+                          {selected.role === 'admin' || selected.role === 'super_admin' ? 'Admin' : 'Client'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{selected ? (selected.isMe ? 'Only you can see these messages' : (selected.status || 'Active')) : ''}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 relative flex-shrink-0">
@@ -436,7 +377,7 @@ const Chat = () => {
                       <button onClick={() => { setMenuOpen(false); exportChat(); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${
                         isDarkMode ? 'hover:bg-gray-600 text-gray-100' : 'hover:bg-gray-50 text-gray-900'
                       }`}><Download/> Export Chat</button>
-                      <button onClick={() => { setMenuOpen(false); const starred = messages.filter(m => m.starred); alert(`Starred messages:\n\n${starred.map(s=> (s.content || s.file?.name) + ' - ' + (s.timestampText||'')).join('\n')}`); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${
+                      <button onClick={() => { setMenuOpen(false); const starred = messages.filter(m => m.starred); alert(`Starred messages:\n\n${starred.map(s=> s.content + ' - ' + (s.timestampText||'')).join('\n')}`); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${
                         isDarkMode ? 'hover:bg-gray-600 text-gray-100' : 'hover:bg-gray-50 text-gray-900'
                       }`}><Star/> Starred Messages</button>
                     </div>
@@ -469,23 +410,10 @@ const Chat = () => {
                   isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
                 }`}>
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
-                      <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAttachFile(f); e.currentTarget.value = ''; }} />
-                      <button onClick={openAttach} className={`p-2 rounded-full transition-colors flex-shrink-0 ${
-                        isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                      }`} title="Attach">
-                        <Paperclip className="h-5 w-5 text-muted-foreground" />
-                      </button>
                       <button onClick={toggleEmoji} className={`p-2 rounded-full transition-colors flex-shrink-0 ${
                         isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                       }`} title="Emoji">
                         <Smile className="h-5 w-5 text-muted-foreground" />
-                      </button>
-                      <button onClick={toggleRecording} className={`p-2 rounded-full flex-shrink-0 transition-colors ${
-                        recording 
-                          ? (isDarkMode ? 'bg-red-900' : 'bg-red-100')
-                          : (isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100')
-                      }`} title="Voice message">
-                        <Mic className="h-5 w-5 text-muted-foreground" />
                       </button>
                       <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message" className={`flex-1 min-w-0 ${
                         isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-100' : 'bg-white border-gray-300 text-gray-900'
@@ -507,37 +435,6 @@ const Chat = () => {
           </div>
         </div>
       </div>
-      {attachOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={closeAttach}></div>
-          <div className={`relative rounded-lg shadow-lg w-full max-w-[640px] p-6 ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-lg font-semibold ${
-                isDarkMode ? 'text-gray-100' : 'text-gray-900'
-              }`}>Share a file</h3>
-              <button onClick={closeAttach} className={`text-sm px-2 py-1 transition-colors ${
-                isDarkMode ? 'hover:bg-gray-700 text-gray-100' : 'hover:bg-gray-100 text-gray-900'
-              }`}>Close</button>
-            </div>
-            <div onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} className={`border-dashed border-2 rounded p-8 text-center transition-colors ${
-              dragOver 
-                ? (isDarkMode ? 'border-teal-400 bg-teal-900/30' : 'border-teal-400 bg-teal-50')
-                : (isDarkMode ? 'border-gray-600' : 'border-gray-200')
-            }`}>
-              <div className="mb-2">
-                <strong>Drag & drop</strong> files here, or
-              </div>
-              <div className="mb-4">
-                <button onClick={() => fileInputRef.current?.click()} className="underline text-sm">Browse files</button>
-                <input type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,image/*,audio/*,video/*" className="hidden" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAttachFile(f); e.currentTarget.value = ''; }} />
-              </div>
-              <div className="text-sm text-muted-foreground">Allowed: PDF, PPT, PPTX, DOC, DOCX, images, audio, video. Max 5MB.</div>
-            </div>
-          </div>
-        </div>
-      )}
       <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBgFile(f); e.currentTarget.value = ''; }} />
     </DashboardLayout>
   );

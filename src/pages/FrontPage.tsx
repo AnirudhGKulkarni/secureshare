@@ -327,7 +327,7 @@ const FrontPage: React.FC = () => {
           src={isDarkMode ? "/darkvideo.mp4" : "/lightvideo.mp4"}
         />
         {/* Optional overlay to ensure text readability */}
-        <div className={`absolute inset-0 ${isDarkMode ? 'bg-gray-900/60' : 'bg-white/60'}`} />
+        <div className={`absolute inset-0 ${isDarkMode ? 'bg-gray-900/20' : 'bg-white/60'}`} />
       </div>
 
       <FrontNavbar isDarkMode={isDarkMode} onThemeToggle={handleThemeToggle} />

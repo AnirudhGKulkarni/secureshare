@@ -1,11 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Paperclip, MoreVertical, Send, Shield, Smile, Mic, Star, Download, Paintbrush } from 'lucide-react';
+import { Search, MoreVertical, Send, Smile, Star, Download, Paintbrush } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
-import { firestore, storage } from '@/lib/firebase';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { firestore } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
 const ClientMessages: React.FC = () => {
@@ -28,16 +27,9 @@ const ClientMessages: React.FC = () => {
   const [search, setSearch] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [attachOpen, setAttachOpen] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const emojiButtonRef = useRef<HTMLButtonElement | null>(null);
   const emojiPanelRef = useRef<HTMLDivElement | null>(null);
-  const [recording, setRecording] = useState(false);
-  const mediaRecorderRef = useRef<any>(null);
-  const audioChunksRef = useRef<any[]>([]);
   const [chatTheme, setChatTheme] = useState<{bg?:string}>({});
   const [menuOpen, setMenuOpen] = useState(false);
   const bgInputRef = useRef<HTMLInputElement | null>(null);
@@ -232,123 +224,15 @@ const ClientMessages: React.FC = () => {
     }
   };
 
-  const sendFile = async (file: File) => {
-    if (!currentUser || !selected || !file) return;
-    try {
-      setUploading(true);
-      const convoId = [currentUser.uid, selected.uid].sort().join('_');
-      const path = `messages/${convoId}/${Date.now()}_${file.name}`;
-      const sref = storageRef(storage, path);
-      const uploadTask = uploadBytesResumable(sref, file);
-      uploadTask.on('state_changed', null, (err) => {
-        console.warn('upload err', err);
-        setUploading(false);
-      }, async () => {
-        const url = await getDownloadURL(uploadTask.snapshot.ref);
-        // pre-create doc so optimistic UI uses same id
-        const newRef = doc(collection(firestore, 'messages'));
-        const tempId = newRef.id;
-        setMessages((s) => [...s, { id: tempId, from: currentUser.uid, to: selected.uid, content: file.name, file: { name: file.name }, convoId, participants: [currentUser.uid, selected.uid], timestampText: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), _temp: true, pending: true, messageType: 'file' }]);
-        await setDoc(newRef, {
-          from: currentUser.uid,
-          to: selected.uid,
-          content: file.name,
-          file: { url, name: file.name, type: file.type, size: file.size },
-          timestamp: serverTimestamp(),
-          participants: [currentUser.uid, selected.uid],
-          convoId,
-          messageType: 'file'
-        });
-        setUploading(false);
-      });
-    } catch (e) {
-      console.warn('file send error', e);
-      setUploading(false);
-    }
-  };
-
-  const MAX_SIZE = 5 * 1024 * 1024;
-  const allowedTypes = [
-    'application/pdf',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'image/',
-    'audio/',
-    'video/'
-  ];
-
-  const isAllowedType = (file: File) => {
-    if (!file.type) return false;
-    return allowedTypes.some(t => t.endsWith('/') ? file.type.startsWith(t) : file.type === t);
-  };
-
-  const openAttach = () => setAttachOpen(true);
-  const closeAttach = () => setAttachOpen(false);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f) handleAttachFile(f);
-  };
-
-  const handleAttachFile = (f: File) => {
-    if (f.size > MAX_SIZE) {
-      alert('You cannot share a file more than 5MB in chat kindly use the main sharing window of Share data');
-      return;
-    }
-    if (!isAllowedType(f)) {
-      alert('This file type is not allowed in chat');
-      return;
-    }
-    sendFile(f);
-    closeAttach();
-  };
-
   const toggleEmoji = () => setShowEmoji(s => !s);
   const insertEmoji = (em: string) => setText(t => t + em);
-
-  const startRecording = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('Recording not supported in this browser');
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new (window as any).MediaRecorder(stream);
-      mediaRecorderRef.current = mr;
-      audioChunksRef.current = [];
-      mr.ondataavailable = (e: any) => audioChunksRef.current.push(e.data);
-      mr.onstop = async () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const file = new File([blob], `voice_${Date.now()}.webm`, { type: blob.type });
-        await sendFile(file);
-      };
-      mr.start();
-      setRecording(true);
-    } catch (err) {
-      console.warn('rec start', err);
-    }
-  };
-
-  const stopRecording = () => {
-    const mr = mediaRecorderRef.current;
-    if (mr && mr.state !== 'inactive') mr.stop();
-    setRecording(false);
-  };
-
-  const toggleRecording = () => {
-    if (recording) stopRecording(); else startRecording();
-  };
 
   const exportChat = () => {
     if (!selected) return;
     const lines = messages.map((m) => {
       const who = m.from === currentUser?.uid ? 'Me' : (selected.displayName || selected.username || selected.email || selected.uid);
       const time = m.timestampText || '';
-      const content = m.messageType === 'file' && m.file ? `[file] ${m.file.name} -> ${m.file.url}` : m.content;
+      const content = m.content;
       return `${who} (${time}): ${content}`;
     }).join('\n');
     const blob = new Blob([`Chat with ${selected.displayName || selected.username || selected.email}\n\n${lines}`], { type: 'text/plain' });
@@ -381,6 +265,16 @@ const ClientMessages: React.FC = () => {
     }
   };
 
+  const showStarredMessages = () => {
+    if (!selected) return;
+    const starred = messages.filter(m => m.starred);
+    if (starred.length === 0) {
+      alert('No starred messages in this conversation.');
+      return;
+    }
+    alert(`Starred messages:\n\n${starred.map(s => s.content + ' - ' + (s.timestampText || '')).join('\n')}`);
+  };
+
   const renderMessages = () => {
     const rows: any[] = [];
     let lastDate = '';
@@ -398,23 +292,8 @@ const ClientMessages: React.FC = () => {
             <button onClick={() => toggleStar(m)} title="Star" className={`absolute -top-3 right-0 p-1 rounded ${m.starred ? 'text-yellow-400' : isDarkMode ? 'text-slate-400' : 'text-gray-400'}`}>
               <Star className="h-4 w-4" />
             </button>
-            {m.messageType === 'file' && m.file ? (
-              <div className="flex flex-col gap-2">
-                {m.file.type?.startsWith('image') ? (
-                  <img src={m.file.url} alt={m.file.name} className="max-h-56 rounded" />
-                ) : (
-                  <a href={m.file.url} target="_blank" rel="noreferrer" className="underline">
-                    {m.file.name}
-                  </a>
-                )}
-                <div className="text-xs mt-1 text-right opacity-70">{m.timestampText || ''}</div>
-              </div>
-            ) : (
-              <>
-                <div className="whitespace-pre-wrap">{m.content}</div>
-                <div className="text-xs mt-1 text-right opacity-70">{m.timestampText || ''}</div>
-              </>
-            )}
+            <div className="whitespace-pre-wrap">{m.content}</div>
+            <div className="text-xs mt-1 text-right opacity-70">{m.timestampText || ''}</div>
           </div>
         </div>
       );
@@ -500,7 +379,7 @@ const ClientMessages: React.FC = () => {
                           <button onClick={() => { setMenuOpen(false); exportChat(); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${isDarkMode ? 'hover:bg-gray-600 text-gray-100' : 'hover:bg-gray-100 text-gray-900'}`}>
                             <Download className="h-4 w-4" /> Export Chat
                           </button>
-                          <button onClick={() => { setMenuOpen(false); const starred = messages.filter(m => m.starred); alert(`Starred messages:\n\n${starred.map(s=> (s.content || s.file?.name) + ' - ' + (s.timestampText||'')).join('\n')}`); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${isDarkMode ? 'hover:bg-gray-600 text-gray-100' : 'hover:bg-gray-100 text-gray-900'}`}>
+                          <button onClick={() => { setMenuOpen(false); showStarredMessages(); }} className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${isDarkMode ? 'hover:bg-gray-600 text-gray-100' : 'hover:bg-gray-100 text-gray-900'}`}>
                             <Star className="h-4 w-4" /> Starred Messages
                           </button>
                         </div>
@@ -518,12 +397,8 @@ const ClientMessages: React.FC = () => {
                   {/* input area */}
                   <div className={`px-4 py-3 border-t relative ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                     <div className="flex items-center gap-3">
-                      <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) handleAttachFile(f); e.currentTarget.value = ''; }} />
-                      <button ref={emojiButtonRef} onClick={(e) => { e.stopPropagation(); setShowEmoji(s => !s); }} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'}`} title="Emoji">
+                      <button ref={emojiButtonRef} onClick={(e) => { e.stopPropagation(); toggleEmoji(); }} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'}`} title="Emoji">
                         <Smile className="h-5 w-5" />
-                      </button>
-                      <button onClick={toggleRecording} className={`p-2 rounded-full transition-colors ${recording ? (isDarkMode ? 'bg-red-600' : 'bg-red-100') : ''} ${isDarkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'}`} title="Voice message">
-                        <Mic className="h-5 w-5" />
                       </button>
                       <Input
                         value={text}
@@ -566,7 +441,6 @@ const ClientMessages: React.FC = () => {
             </div>
           </div>
         </div>
-      {/* attach modal removed to fix JSX parse error; file attach still works via hidden input */}
       <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.currentTarget.files && e.currentTarget.files[0]; if (f) handleBgFile(f); e.currentTarget.value = ''; }} />
     </div>
   );
