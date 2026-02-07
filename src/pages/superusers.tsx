@@ -23,6 +23,7 @@ type UserRecord = {
   email?: string;
   role?: Role;
   status?: 'pending' | 'active' | 'rejected' | 'inactive';
+  plan?: string;
   createdAt?: any;
   tempPassword?: string;
 };
@@ -44,7 +45,7 @@ const SuperUsers = () => {
   );
   const [newUserPassword, setNewUserPassword] = useState<string>('');
   const [viewUser, setViewUser] = useState<UserRecord | null>(null);
-  const [editUser, setEditUser] = useState<{ firstName: string; lastName: string; email: string; role: Role; status: 'pending' | 'active' | 'rejected' | 'inactive'; tempPassword?: string } | null>(null);
+  const [editUser, setEditUser] = useState<{ firstName: string; lastName: string; email: string; role: Role; status: 'pending' | 'active' | 'rejected' | 'inactive'; plan?: string; tempPassword?: string } | null>(null);
 
   useEffect(() => {
     const ref = collection(firestore, 'users');
@@ -59,6 +60,7 @@ const SuperUsers = () => {
           email: data?.email ?? '',
           role: data?.role ?? 'client',
           status: data?.status ?? 'active',
+          plan: data?.plan ?? '',
           createdAt: data?.createdAt ?? null,
           tempPassword: data?.tempPassword ?? '',
         });
@@ -123,6 +125,7 @@ const SuperUsers = () => {
       email: (u as any).email || '',
       role: (u.role as Role) || 'client',
       status: (u.status as any) || 'active',
+      plan: u.plan || '',
       tempPassword: (u as any).tempPassword || '',
     });
   };
@@ -317,7 +320,17 @@ const SuperUsers = () => {
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : (u.email || 'Unnamed')}</p>
                     <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                    <p className="text-xs"><Badge variant={getRoleBadgeVariant(u.role)} className={getRoleBadgeClass(u.role)}>{u.role}</Badge> <span className="ml-2 text-muted-foreground">{u.status}</span></p>
+                    <p className="text-xs">
+                      <Badge variant={getRoleBadgeVariant(u.role)} className={getRoleBadgeClass(u.role)}>{u.role}</Badge>
+                      {u.plan === 'Professional' ? (
+                        <Badge className="ml-1 bg-amber-500 text-white hover:bg-amber-600">Professional</Badge>
+                      ) : u.plan === 'Starter' ? (
+                        <Badge className="ml-1 bg-slate-500 text-white hover:bg-slate-600">Basic</Badge>
+                      ) : (
+                        <Badge variant="outline" className="ml-1">No Plan</Badge>
+                      )}
+                      <span className="ml-2 text-muted-foreground">{u.status}</span>
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => openView(u)}>View</Button>
@@ -363,6 +376,18 @@ const SuperUsers = () => {
                   <div>
                     <div className="text-xs text-muted-foreground">Status</div>
                     <div className="text-sm">{editUser.status}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Plan</div>
+                    <div className="text-sm">
+                      {editUser.plan === 'Professional' ? (
+                        <Badge className="bg-amber-500 text-white">Professional</Badge>
+                      ) : editUser.plan === 'Starter' ? (
+                        <Badge className="bg-slate-500 text-white">Basic</Badge>
+                      ) : (
+                        <Badge variant="outline">No Plan</Badge>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Password</div>

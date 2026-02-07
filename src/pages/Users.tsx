@@ -34,6 +34,7 @@ interface User {
   email: string;
   role: string;
   status: string;
+  plan?: string;
   createdAt?: any;
   tempPassword?: string | null;
 }
@@ -73,6 +74,7 @@ const Users = () => {
           email: data?.email ?? '',
           role: data?.role ?? '',
           status: data?.status ?? '',
+          plan: data?.plan ?? '',
           createdAt: data?.createdAt ?? null,
           tempPassword: data?.tempPassword ?? null,
         });
@@ -478,6 +480,7 @@ const Users = () => {
                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Username</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Email</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Role</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Plan</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -488,6 +491,15 @@ const Users = () => {
                       <td className="px-4 py-4 text-sm text-muted-foreground">{user.email}</td>
                       <td className="px-4 py-4">
                         <Badge style={getRoleBadgeStyle(user.role)}>{getRoleDisplay(user.role)}</Badge>
+                      </td>
+                      <td className="px-4 py-4">
+                        {user.plan === 'Professional' ? (
+                          <Badge className="bg-amber-500 text-white hover:bg-amber-600">Professional</Badge>
+                        ) : user.plan ? (
+                          <Badge variant="secondary">{user.plan}</Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex justify-end gap-2">

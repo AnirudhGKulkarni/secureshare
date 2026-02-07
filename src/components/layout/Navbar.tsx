@@ -94,8 +94,18 @@ export const Navbar = ({ onToggleSidebar }: { onToggleSidebar?: () => void }) =>
 
       <div className="flex items-center gap-2 sm:gap-4 ml-auto flex-shrink-0">
         <div className="hidden sm:block">
-          {profile?.role !== "client" && (
-            <button className="px-3 py-1 rounded-md text-white text-sm font-medium hover:opacity-95" style={{ backgroundColor: '#113738' }}>Connect to Hardware</button>
+          {(profile?.role === "super_admin" || profile?.plan === "Professional") && (
+            <button 
+              onClick={() => window.open('https://nanoserver.co.in/', '_blank')}
+              className="px-3 py-1 rounded-md text-white text-sm font-medium hover:opacity-95 animate-pulse" 
+              style={{ 
+                backgroundColor: '#113738',
+                boxShadow: '0 0 10px #f59e0b, 0 0 20px #f59e0b, 0 0 30px #f59e0b40',
+                border: '1px solid #f59e0b'
+              }}
+            >
+              PREMIUM ACCESS
+            </button>
           )}
         </div>
 

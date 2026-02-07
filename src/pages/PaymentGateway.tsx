@@ -301,7 +301,7 @@ const PaymentGateway: React.FC = () => {
               if (auth?.currentUser) {
                 const { doc, updateDoc } = await import("firebase/firestore");
                 const userDocRef = doc(firestore, "users", auth.currentUser.uid);
-                await updateDoc(userDocRef, { paid: true, paidAt: new Date().toISOString() });
+                await updateDoc(userDocRef, { paid: true, paidAt: new Date().toISOString(), plan: selectedPlan });
                 // Refresh in-memory profile so role-protection sees paid immediately
                 try {
                   await refreshProfile();
