@@ -104,6 +104,16 @@ body {
               color var(--transition-base);
 }
 
+/* Pages with video backgrounds need transparent backgrounds */
+.video-bg-page,
+.video-bg-page body {
+  background-color: transparent !important;
+}
+.dark.video-bg-page,
+.dark .video-bg-page {
+  background-color: transparent !important;
+}
+
 /* Fluid (responsive) base typography for different screen sizes */
 html {
   /* scale between 14px on small screens and 18px on very large screens */

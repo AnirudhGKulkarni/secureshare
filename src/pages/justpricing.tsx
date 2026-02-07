@@ -68,6 +68,18 @@ const JustPricing: React.FC = () => {
     }
   }, [isDarkMode]);
 
+  // Add video-bg-page class for transparent background (video shows through)
+  React.useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.add('video-bg-page');
+      document.body.classList.add('video-bg-page');
+      return () => {
+        document.documentElement.classList.remove('video-bg-page');
+        document.body.classList.remove('video-bg-page');
+      };
+    }
+  }, []);
+
   const handleThemeToggle = () => {
     setIsDarkMode((prev) => {
       const next = !prev;
@@ -88,17 +100,32 @@ const JustPricing: React.FC = () => {
   const [fbMessage, setFbMessage] = useState("");
   const [emailProvider, setEmailProvider] = useState("");
 
+  const bgVideoRef = React.useRef<HTMLVideoElement>(null);
+
+  // Force video reload when dark mode changes
+  React.useEffect(() => {
+    const video = bgVideoRef.current;
+    if (video) {
+      video.load();
+      video.play().catch(() => {});
+    }
+  }, [isDarkMode]);
+
   return (
     <div className={`${bgClass} min-h-screen relative`}> 
       {/* Global Background Video */}
       <div className="fixed inset-0 w-full h-full -z-50">
         <video
+          ref={bgVideoRef}
+          key={isDarkMode ? 'dark-bg' : 'light-bg'}
           className="w-full h-full object-cover"
           autoPlay
           muted
           loop
           playsInline
+          preload="auto"
           src={isDarkMode ? "/darkvideo.mp4" : "/lightvideo.mp4"}
+          poster={isDarkMode ? "/bg.png" : "/lbg.png"}
         />
         {/* Optional overlay to ensure text readability */}
         <div className={`absolute inset-0 ${isDarkMode ? 'bg-gray-900/60' : 'bg-white/60'}`} />

@@ -80,13 +80,26 @@ const FrontPage: React.FC = () => {
       localStorage.setItem('theme-preference', isDarkMode ? 'dark' : 'light');
     }
   }, [isDarkMode]);
+
+  // Add video-bg-page class for transparent background (video shows through)
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.add('video-bg-page');
+      document.body.classList.add('video-bg-page');
+      return () => {
+        document.documentElement.classList.remove('video-bg-page');
+        document.body.classList.remove('video-bg-page');
+      };
+    }
+  }, []);
+
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [fbLoading, setFbLoading] = useState(false);
   const [fbName, setFbName] = useState("");
   const [fbMessage, setFbMessage] = useState("");
   const [emailProvider, setEmailProvider] = useState("");
-  // Update this path to the image you placed in /public (e.g., /screens/demo.png)
-  const screenImageSrc = "/image.png";
+  // Use image1.png for dark mode, image.png for light mode
+  const screenImageSrc = isDarkMode ? "/image1.png" : "/image.png";
   // Optional: use a laptop frame image from /public. Example: /laptop-frame.png
   const useImageLaptop = false;
   const laptopFrameSrc = "/laptop-frame.png";
@@ -205,6 +218,7 @@ const FrontPage: React.FC = () => {
 
   // Video availability & small-screen detection for fallback
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const bgVideoRef = useRef<HTMLVideoElement | null>(null);
   const [videoPlayable, setVideoPlayable] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [videoAspect, setVideoAspect] = useState<number | null>(null);
@@ -288,6 +302,20 @@ const FrontPage: React.FC = () => {
     if (videoAspect) computeHeroHeight(videoAspect);
   }, [videoAspect, videoPlayable]);
 
+  // Force video reload when dark mode changes
+  useEffect(() => {
+    const video = videoRef.current;
+    const bgVideo = bgVideoRef.current;
+    if (video) {
+      video.load();
+      video.play().catch(() => {});
+    }
+    if (bgVideo) {
+      bgVideo.load();
+      bgVideo.play().catch(() => {});
+    }
+  }, [isDarkMode]);
+
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % carouselItems.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + carouselItems.length) % carouselItems.length);
 
@@ -319,12 +347,16 @@ const FrontPage: React.FC = () => {
       {/* Global Background Video for non-hero sections */}
       <div className="fixed inset-0 w-full h-full -z-50">
         <video
+          ref={bgVideoRef}
+          key={isDarkMode ? 'dark-bg' : 'light-bg'}
           className="w-full h-full object-cover"
           autoPlay
           muted
           loop
           playsInline
+          preload="auto"
           src={isDarkMode ? "/darkvideo.mp4" : "/lightvideo.mp4"}
+          poster={isDarkMode ? "/bg.png" : "/lbg.png"}
         />
         {/* Optional overlay to ensure text readability */}
         <div className={`absolute inset-0 ${isDarkMode ? 'bg-gray-900/20' : 'bg-white/60'}`} />
@@ -344,6 +376,7 @@ const FrontPage: React.FC = () => {
         {/* Background video for the hero (blurred, non-interactive) - shown on all screen sizes */}
         <video
           ref={videoRef}
+          key={`hero-${isDarkMode ? 'dark' : 'light'}-${isSmallScreen ? 'mobile' : 'desktop'}`}
           className={`absolute inset-0 w-full h-full object-cover object-center z-0 filter ${isSmallScreen ? 'blur-none brightness-95' : 'blur-none brightness-95'}`}
           autoPlay
           muted
@@ -522,7 +555,7 @@ const FrontPage: React.FC = () => {
           {/* laptop-style mockup */}
           <div className="relative mt-6 flex justify-center">
             <div className="relative w-full max-w-5xl">
-              <div className="rounded-3xl border border-gray-800 bg-gradient-to-br from-gray-800 to-gray-900 shadow-2xl overflow-hidden">
+              <div className={`rounded-3xl border shadow-2xl overflow-hidden ${isDarkMode ? 'border-gray-800 bg-gradient-to-br from-gray-800 to-gray-900' : 'border-gray-300 bg-gradient-to-br from-gray-100 to-gray-200'}`}>
                 <div className="p-6 md:p-10 relative">
                   {useImageLaptop ? (
                     <>
@@ -535,7 +568,7 @@ const FrontPage: React.FC = () => {
                       />
                       {/* Screen overlay */}
                       <div
-                        className="absolute z-10 overflow-hidden rounded-[12px] ring-1 ring-gray-800/60"
+                        className={`absolute z-10 overflow-hidden rounded-[12px] ring-1 ${isDarkMode ? 'ring-gray-800/60 bg-gray-900' : 'ring-gray-300 bg-white'}`}
                         style={{
                           top: screenRect.top,
                           left: screenRect.left,
@@ -546,66 +579,25 @@ const FrontPage: React.FC = () => {
                         <img
                           src={screenImageSrc}
                           alt="trustNshare product screenshot"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                           loading="lazy"
                         />
                       </div>
                     </>
                   ) : (
                     <>
-                      {/* Fallback: vector laptop with simulated UI and overlayed screen image */}
+                      {/* Display the product screenshot directly without SVG mockup */}
                       <div
-                        className="absolute z-10 overflow-hidden rounded-[12px] ring-1 ring-gray-800/60"
-                        style={{ top: "7.7%", left: "3.33%", width: "93.33%", height: "73.08%" }}
+                        className={`relative w-full rounded-2xl overflow-hidden shadow-xl ${isDarkMode ? 'bg-gray-900 ring-1 ring-gray-700' : 'bg-white ring-1 ring-gray-200'}`}
                       >
                         <img
                           src={screenImageSrc}
                           alt="trustNshare product screenshot"
-                          className="w-full h-full object-cover"
+                          className="w-full h-auto object-contain"
                           loading="lazy"
+                          style={{ display: 'block' }}
                         />
                       </div>
-                      <svg viewBox="0 0 1200 520" className="w-full h-auto" role="img" aria-label="Product demo mockup">
-                        <defs>
-                          <linearGradient id="screenGrad" x1="0" x2="1">
-                            <stop offset="0%" stopColor="#0f172a" />
-                            <stop offset="100%" stopColor="#111827" />
-                          </linearGradient>
-                          <linearGradient id="accentGrad" x1="0" x2="1">
-                            <stop offset="0%" stopColor="#2563eb" />
-                            <stop offset="100%" stopColor="#7c3aed" />
-                          </linearGradient>
-                        </defs>
-                        <rect x="20" y="20" width="1160" height="420" rx="18" fill="#0b1220" stroke="#1f2937" />
-                        <rect x="40" y="40" width="1120" height="380" rx="12" fill="url(#screenGrad)" />
-                        <circle cx="60" cy="60" r="6" fill="#ef4444" />
-                        <circle cx="80" cy="60" r="6" fill="#f59e0b" />
-                        <circle cx="100" cy="60" r="6" fill="#10b981" />
-                        <rect x="60" y="90" width="180" height="310" rx="10" fill="#111827" stroke="#1f2937" />
-                        <rect x="80" y="110" width="140" height="14" rx="7" fill="#334155" />
-                        <rect x="80" y="140" width="120" height="10" rx="5" fill="#1f2937" />
-                        <rect x="80" y="170" width="120" height="10" rx="5" fill="#1f2937" />
-                        <rect x="80" y="200" width="120" height="10" rx="5" fill="#1f2937" />
-                        <rect x="80" y="230" width="120" height="10" rx="5" fill="#1f2937" />
-                        <rect x="80" y="260" width="120" height="10" rx="5" fill="#1f2937" />
-                        <rect x="80" y="290" width="120" height="10" rx="5" fill="#1f2937" />
-                        <rect x="80" y="320" width="120" height="10" rx="5" fill="#1f2937" />
-                        <rect x="80" y="350" width="120" height="10" rx="5" fill="#1f2937" />
-                        <rect x="260" y="110" width="860" height="80" rx="10" fill="#0b1220" stroke="#1f2937" />
-                        <rect x="280" y="130" width="200" height="16" rx="8" fill="#334155" />
-                        <rect x="500" y="130" width="140" height="16" rx="8" fill="#334155" />
-                        <rect x="660" y="130" width="120" height="16" rx="8" fill="#334155" />
-                        <rect x="800" y="130" width="120" height="16" rx="8" fill="#334155" />
-                        <rect x="260" y="210" width="860" height="180" rx="12" fill="#0b1220" stroke="#1f2937" />
-                        <path d="M280 360 C 360 260, 440 300, 520 260 S 700 230, 780 300 S 940 260, 1100 320" stroke="url(#accentGrad)" strokeWidth="6" fill="none" />
-                        <rect x="280" y="240" width="60" height="8" rx="4" fill="#334155" />
-                        <rect x="350" y="240" width="40" height="8" rx="4" fill="#334155" />
-                        <rect x="400" y="240" width="50" height="8" rx="4" fill="#334155" />
-                        <rect x="940" y="110" width="180" height="80" rx="10" fill="#111827" stroke="#1f2937" />
-                        <rect x="960" y="130" width="80" height="12" rx="6" fill="#334155" />
-                        <rect x="960" y="150" width="60" height="10" rx="5" fill="#1f2937" />
-                        <rect x="100" y="440" width="1000" height="16" rx="8" fill="#0b1220" />
-                      </svg>
                     </>
                   )}
                 </div>

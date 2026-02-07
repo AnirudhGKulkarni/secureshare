@@ -204,9 +204,13 @@ const Auth: React.FC = () => {
     setIsLoading(true);
     try {
       const user = await login(email.trim(), password);
+      console.log("=== AUTH: Login succeeded, user UID:", user.uid);
       try {
+        console.log("=== AUTH: Reading Firestore profile...");
         const snap = await getDoc(doc(firestore, "users", user.uid));
+        console.log("=== AUTH: Firestore snap exists:", snap.exists());
         const profile = snap.exists() ? snap.data() : null;
+        console.log("=== AUTH: Profile data:", profile);
 
         // If status is pending and admin signup exists, redirect to waiting page
         if (profile?.status === "pending") {
@@ -235,13 +239,27 @@ const Auth: React.FC = () => {
 
         toast.success("Login successful!");
 
+        console.log("=== AUTH LOGIN DEBUG ===");
+        console.log("Profile exists:", !!profile);
+        console.log("Profile role:", profile?.role);
+        console.log("Profile status:", profile?.status);
+
+        // Handle super_admin role
+        if (profile && profile.role === "super_admin") {
+          console.log("Navigating to super-admin dashboard");
+          navigate("/super-admin");
+          return;
+        }
+
         // Prefer authoritative Firestore profile when available.
         if (profile && profile.role === "client") {
+          console.log("Navigating to client dashboard");
           navigate("/client");
           return;
         }
 
         if (profile && profile.role === "admin") {
+          console.log("Navigating to admin dashboard");
           navigate("/dashboard");
           return;
         }
@@ -249,7 +267,14 @@ const Auth: React.FC = () => {
         // If profile is missing or role unknown, check token claims (server-side) as fallback.
         try {
           const id = await getIdTokenResult(user);
+          console.log("Token claims:", id.claims);
+          if ((id.claims as any)?.super_admin) {
+            console.log("Token claims: super_admin found, navigating");
+            navigate("/super-admin");
+            return;
+          }
           if ((id.claims as any)?.admin) {
+            console.log("Token claims: admin found, navigating");
             // ensure Firestore reflects admin role if possible
             try {
               const ref = doc(firestore, "users", user.uid);
@@ -273,7 +298,9 @@ const Auth: React.FC = () => {
         // unless token claims explicitly mark user as admin.
         try {
           const id = await getIdTokenResult(user);
-          if ((id.claims as any)?.admin) navigate("/dashboard");
+          console.log("Fallback token claims:", id.claims);
+          if ((id.claims as any)?.super_admin) navigate("/super-admin");
+          else if ((id.claims as any)?.admin) navigate("/dashboard");
           else navigate("/client");
         } catch (err2) {
           console.warn("Could not read token claims after profile read failure:", err2);
