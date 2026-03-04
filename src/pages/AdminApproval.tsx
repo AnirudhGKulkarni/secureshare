@@ -166,6 +166,8 @@ const AdminApproval = () => {
             status: 'active',
             role: 'admin',
             approvedAt: serverTimestamp(),
+            adminRequestSubmitted: false,
+            paid: false,
           });
         } else if (uid) {
           // If we have an Auth user but no profile (rare), create the profile at uid doc id

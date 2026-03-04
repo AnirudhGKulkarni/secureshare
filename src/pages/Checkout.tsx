@@ -178,7 +178,7 @@ const Checkout: React.FC = () => {
               <a href="/TERMS%20AND%20CONDITIONS.pdf?v=20251220" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors duration-300">Terms and Conditions</a>
             </div>
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <p className="flex items-center gap-2"><span className="text-blue-400">©</span> 2025 trustNshare. All rights reserved.</p>
+              <p className="flex items-center gap-2"><span className="text-blue-400">©</span> 2026 trustNshare. All rights reserved.</p>
               <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className={`p-3 rounded-full border-2 font-bold text-lg transition-all duration-300 transform hover:scale-110 active:scale-95 flex items-center justify-center ${isDarkMode ? "border-blue-500 text-blue-400 bg-blue-500/20 hover:border-blue-400 hover:bg-blue-500/30 hover:text-blue-300" : "border-blue-600 text-blue-600 bg-blue-600/20 hover:border-blue-700 hover:bg-blue-600/30 hover:text-blue-700"}`} aria-label="Back to top" title="Back to top"><ArrowUp className="h-6 w-6" /></button>
             </div>
           </div>

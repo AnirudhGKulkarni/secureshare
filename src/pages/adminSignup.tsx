@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { doc as fdoc, getDoc as fgetDoc } from "firebase/firestore";
@@ -36,6 +36,7 @@ const AdminSignup: React.FC = () => {
     return false;
   });
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
 
   // Apply theme to document root
   useEffect(() => {
@@ -48,44 +49,45 @@ const AdminSignup: React.FC = () => {
     useEffect(() => {
       const fillFromProfile = async () => {
         try {
-          // Prefer context profile if available
+          // Check if profile is available from context
           const p = profile;
-          if (p) {
-            setFirstName(p.firstName ?? "");
-            setLastName(p.lastName ?? "");
-            setCompany(p.company ?? "");
+          
+          if (p && typeof p === 'object') {
+            // Profile exists - autofill available fields
+            console.log("Autofill: Loaded profile data:", {
+              firstName: p.firstName,
+              lastName: p.lastName,
+              email: p.email,
+              company: p.company,
+              domain: p.domain,
+            });
+            
+            setFirstName(p.firstName || "");
+            setLastName(p.lastName || "");
+            setEmail(p.email || "");
+            setCompany(p.company || "");
+            setCustomCategory(p.customCategory || "");
+            
             if (p.domain && (domainOptions as readonly string[]).includes(p.domain)) {
               setDomain(p.domain as typeof domainOptions[number]);
             }
-            setCustomCategory(p.customCategory ?? "");
-            setUsername((p.username ?? "").toLowerCase());
-            setEmail(p.email ?? "");
+            
             return;
           }
-          // Fallback: fetch users/{uid} if logged in
-          if (currentUser) {
-            const ref = fdoc(firestore, "users", currentUser.uid);
-            const snap = await fgetDoc(ref);
-            if (snap.exists()) {
-              const u: any = snap.data();
-              setFirstName(u.firstName ?? "");
-              setLastName(u.lastName ?? "");
-              setCompany(u.company ?? "");
-              if (u.domain && (domainOptions as readonly string[]).includes(u.domain)) {
-                setDomain(u.domain as typeof domainOptions[number]);
-              }
-              setCustomCategory(u.customCategory ?? "");
-              setUsername((u.username ?? "").toLowerCase());
-              setEmail(u.email ?? "");
-            }
+          
+          // If profile is still loading or null, log it
+          if (profile === undefined) {
+            console.log("Autofill: Profile still loading (undefined)");
+          } else if (profile === null) {
+            console.log("Autofill: Profile is explicitly null");
           }
         } catch (e) {
-          console.warn("Autofill failed:", e);
+          console.warn("Autofill error:", e);
         }
       };
+      
       fillFromProfile();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentUser?.uid]);
+    }, [profile]);
   
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,10 +149,17 @@ const AdminSignup: React.FC = () => {
       return;
     }
 
+    // Ensure user is signed in (required to write to Firestore)
+    if (!currentUser) {
+      toast.error("You must sign up first before submitting an admin request. Please sign up to continue.");
+      navigate("/signup", { replace: true });
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Save to Firebase "approval_documents" collection
-      await addDoc(collection(firestore, "approval_documents"), {
+      const docData: any = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         username: uname,
@@ -161,15 +170,49 @@ const AdminSignup: React.FC = () => {
         googleDriveLink: googleDriveLink.trim(),
         status: "pending",
         createdAt: serverTimestamp(),
-      });
+      };
 
-      toast.success("Please wait for the approval");
+      console.log("Submitting admin request with data:", docData);
+
+      const docRef = await addDoc(collection(firestore, "approval_documents"), docData);
+
+      console.log("Admin request submitted successfully:", docRef.id);
+
+      // Update user profile to mark admin request submitted
+      try {
+        const userRef = doc(firestore, "users", currentUser.uid);
+        await updateDoc(userRef, {
+          adminRequestSubmitted: true,
+          adminRequestSubmittedAt: serverTimestamp(),
+        });
+        console.log("User profile marked with admin request submission");
+        
+        // Refresh profile to load the updated adminRequestSubmitted flag
+        await refreshProfile();
+        console.log("Profile refreshed with admin request status");
+      } catch (profileErr: any) {
+        console.warn("Could not update user profile:", profileErr?.message || profileErr);
+        // Don't fail submission if profile update fails
+      }
+
+      toast.success("Admin request submitted! Please wait for super admin approval.");
+      // Redirect to waiting approval page
       setTimeout(() => {
-        navigate("/", { replace: true });
+        navigate("/waiting-approval", { replace: true });
       }, 1500);
     } catch (err: any) {
-      console.error("Submission error:", err);
-      toast.error(err?.message ?? "Submission failed");
+      console.error("Submission error details:", {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+      });
+      
+      // Provide specific error messages based on error code
+      if (err?.code === "permission-denied") {
+        toast.error("Permission denied. Please ensure you are signed in and try again.");
+      } else {
+        toast.error(err?.message ?? "Submission failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -214,18 +257,6 @@ const AdminSignup: React.FC = () => {
         </CardHeader>
 
         <CardContent>
-          {/* Prerequisite note with link to Login */}
-          <div className={`mb-4 p-3 rounded-md border text-sm ${
-            isDarkMode
-              ? "border-teal-700/50 bg-gradient-to-r from-teal-950/30 to-cyan-950/30 text-teal-200"
-              : "border-teal-300/50 bg-gradient-to-r from-teal-50/50 to-cyan-50/50 text-teal-800"
-          }`}>
-            <p>
-              <strong>Note:</strong> Before proceeding with the registration, you must have a registered username and password. Please create one via the signup page if you haven't already done so.
-              {" "}
-              <Link to="/login" className={`underline ml-1 ${isDarkMode ? "text-teal-300 hover:text-teal-200" : "text-teal-600 hover:text-teal-700"}`}>Go to Login/Signup</Link>
-            </p>
-          </div>
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4">
             <div className="grid grid-cols-2 gap-3">

@@ -92,7 +92,7 @@ export const DashboardFooter = () => {
               </div>
             </div>
             <p className="text-sm flex items-center gap-2">
-              <span className="text-primary">©</span> 2025 trustNshare. All rights reserved.
+              <span className="text-primary">©</span> 2026 trustNshare. All rights reserved.
             </p>
           </div>
         </div>

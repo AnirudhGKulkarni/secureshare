@@ -11,6 +11,15 @@ import {
 } from "firebase/auth";
 import { auth, firestore } from "@/lib/firebase";
 import { doc, setDoc, getDoc, updateDoc, addDoc, collection, serverTimestamp, increment } from "firebase/firestore";
+import { getSecuritySettings } from "@/features/superAdmin/services/securitySettingsService";
+import { writeLoginHistory } from "@/features/superAdmin/services/loginHistoryService";
+import { writeAuditLog } from "@/features/superAdmin/services/auditLogsService";
+import { isSuperAdminRole } from "@/features/superAdmin/services/superAdminGuards";
+
+const getDeviceInfo = () => {
+  if (typeof navigator === "undefined") return "";
+  return [navigator.userAgent, (navigator as any).platform].filter(Boolean).join(" | ");
+};
 
 type SignupData = {
   email: string;
@@ -72,13 +81,90 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // login: signs in and waits for profile load to complete
   const login = async (email: string, password: string) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
+    // Best-effort login throttling (client-side)
+    try {
+      const settings = await getSecuritySettings();
+      const limit = settings?.loginAttemptLimit ?? 0;
+      if (limit > 0 && typeof window !== "undefined") {
+        const key = `login_fail_${email.toLowerCase()}`;
+        const raw = window.localStorage.getItem(key);
+        const fails = raw ? Number(raw) : 0;
+        if (Number.isFinite(fails) && fails >= limit) {
+          const err: any = new Error("Too many failed login attempts. Please try again later.");
+          err.code = "auth/too-many-attempts";
+          throw err;
+        }
+      }
+    } catch {
+      // ignore settings read failures; do not block login
+    }
+
+    let cred;
+    try {
+      cred = await signInWithEmailAndPassword(auth, email, password);
+    } catch (err: any) {
+      try {
+        if (typeof window !== "undefined") {
+          const key = `login_fail_${email.toLowerCase()}`;
+          const raw = window.localStorage.getItem(key);
+          const fails = raw ? Number(raw) : 0;
+          const next = Number.isFinite(fails) ? fails + 1 : 1;
+          window.localStorage.setItem(key, String(next));
+        }
+      } catch {
+        /* ignore */
+      }
+      throw err;
+    }
+
     console.log("AuthContext - Login successful for:", cred.user.email);
     // Wait for profile to load before returning
     await loadProfile(cred.user.uid);
     // Force a second load attempt to ensure fresh data
     await new Promise(resolve => setTimeout(resolve, 200));
     await loadProfile(cred.user.uid);
+
+    // Enforce blocked accounts and maintenance mode (best-effort client enforcement)
+    try {
+      const snap = await getDoc(doc(firestore, "users", cred.user.uid));
+      const pr = snap.exists() ? (snap.data() as any) : null;
+
+      if (pr?.blocked === true) {
+        await signOut(auth);
+        const err: any = new Error("Your account has been blocked. Contact support.");
+        err.code = "auth/account-blocked";
+        throw err;
+      }
+
+      const settings = await getSecuritySettings();
+      if (settings?.maintenanceMode === true && !isSuperAdminRole(pr?.role)) {
+        await signOut(auth);
+        const err: any = new Error("The platform is currently in maintenance mode. Please try again later.");
+        err.code = "auth/maintenance-mode";
+        throw err;
+      }
+
+      if (pr?.forcePasswordReset === true) {
+        // Best-effort: send reset email and clear the flag.
+        try {
+          await sendPasswordResetEmail(auth, cred.user.email || email);
+        } catch (e) {
+          console.warn("Could not send forced password reset email:", e);
+        }
+        try {
+          await updateDoc(doc(firestore, "users", cred.user.uid), { forcePasswordReset: false, passwordResetRequestedAt: serverTimestamp() });
+        } catch (e) {
+          console.warn("Could not clear forcePasswordReset flag:", e);
+        }
+        await signOut(auth);
+        const err: any = new Error("Password reset required. Please check your email.");
+        err.code = "auth/password-reset-required";
+        throw err;
+      }
+    } catch (e) {
+      // If enforcement throws, surface it
+      if ((e as any)?.code) throw e;
+    }
     // Record login timestamp and increment total login count for the user
     try {
       const userLogRef = doc(firestore, "user_logins", cred.user.uid);
@@ -98,12 +184,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       console.warn("Failed to append audit_logs entry:", e);
     }
+
+    // New: loginHistory tracking (super admin can view all)
+    try {
+      await writeLoginHistory({
+        userId: cred.user.uid,
+        email: cred.user.email || email,
+        deviceInfo: getDeviceInfo(),
+        ipAddress: null,
+        location: null,
+      });
+    } catch (e) {
+      console.warn("Failed to write loginHistory:", e);
+    }
+
+    // New: unified audit logs for admin monitoring
+    try {
+      await writeAuditLog({
+        actionType: "LOGIN",
+        performedBy: cred.user.uid,
+        performedByName: cred.user.displayName || cred.user.email || email,
+        targetUser: cred.user.uid,
+        details: { deviceInfo: getDeviceInfo() },
+      });
+    } catch (e) {
+      console.warn("Failed to write auditLogs LOGIN entry:", e);
+    }
+
+    // Reset client-side failure counter on success
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(`login_fail_${email.toLowerCase()}`);
+      }
+    } catch {
+      /* ignore */
+    }
     return cred.user;
   };
 
   // signup: creates auth user, writes Firestore user doc (awaited), then loads profile
   const signup = async (data: SignupData) => {
     const { email, password, firstName, lastName, company, companyDomain, domain, role } = data;
+
+    // Enforce registration enabled (best-effort; requires public read access to system_settings/securitySettings)
+    try {
+      const settings = await getSecuritySettings();
+      if (settings?.registrationEnabled === false) {
+        const err: any = new Error("Registrations are currently disabled.");
+        err.code = "auth/registration-disabled";
+        throw err;
+      }
+    } catch (e) {
+      if ((e as any)?.code === "auth/registration-disabled") throw e;
+      // If rules deny reading settings, do not block signup.
+    }
+
     const cred = await createUserWithEmailAndPassword(auth, email, password);
 
     // Update Firebase Auth profile (displayName)
@@ -121,8 +256,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         {
           email,
           role: safeRole,
-          status: "pending",
-          createdAt: new Date().toISOString()
+          status: "active",
+          createdAt: serverTimestamp(),
         },
         { merge: true }
       );
@@ -141,8 +276,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         companyDomain: companyDomain ?? null,
         domain,
         role: safeRole,
-        status: "pending",
-        createdAt: new Date().toISOString()
+        status: "active",
+        createdAt: serverTimestamp(),
       });
     } catch (err) {
       console.warn("Full profile write failed during signup (non-blocking):", err);
@@ -151,6 +286,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Load profile into context (non-blocking)
     loadProfile(cred.user.uid).catch((e) => console.warn("loadProfile after signup error:", e));
+
+    // New: audit log for user creation
+    try {
+      await writeAuditLog({
+        actionType: "USER_CREATED",
+        performedBy: cred.user.uid,
+        performedByName: `${firstName} ${lastName}`.trim() || cred.user.email || email,
+        targetUser: cred.user.uid,
+        details: { role: safeRole },
+      });
+    } catch (e) {
+      console.warn("Failed to write auditLogs USER_CREATED entry:", e);
+    }
 
     return cred.user;
   };
@@ -181,6 +329,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     return () => unsub();
   }, []);
+
+  // If maintenance mode is enabled, sign out non-superadmins (best-effort)
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!currentUser) return;
+        const settings = await getSecuritySettings();
+        if (!settings?.maintenanceMode) return;
+        const pr: any = profile;
+        if (!isSuperAdminRole(pr?.role)) {
+          await signOut(auth);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [currentUser, profile]);
 
   return (
     <AuthContext.Provider value={{ currentUser, profile, loading, login, signup, resetPassword, logout, refreshProfile }}>

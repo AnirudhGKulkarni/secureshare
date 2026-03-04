@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import "@/styles/navbar-bg-image.css";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOut } from "firebase/auth";
@@ -16,20 +16,21 @@ const FrontNavbar: React.FC<FrontNavbarProps> = ({ isDarkMode = false, onThemeTo
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { currentUser, profile } = useAuth();
+  const location = useLocation();
 
   const dashboardRoute = useMemo(() => {
+    // Don't show dashboard button on admin signup page or verify email page
+    if (location.pathname === "/admin-signup" || location.pathname === "/verify-email") return null;
+
     // If not logged in or profile missing, no dashboard
     if (!currentUser || !profile) return null;
-
-    // If status pending -> waiting approval
-    if (profile?.status === "pending") return "/waiting-approval";
 
     // Route by role
     const role = profile?.role || "client";
     if (role === "super_admin") return "/super-admin";
     if (role === "admin") return "/dashboard";
     return "/client";
-  }, [currentUser, profile]);
+  }, [currentUser, profile, location.pathname]);
 
   const toggleDropdown = (menu: string) => {
     setOpenDropdown(openDropdown === menu ? null : menu);

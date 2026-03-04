@@ -17,7 +17,7 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && getUserRole() == 'super_admin';
+      return isSignedIn() && (getUserRole() in ['super_admin', 'superadmin']);
     }
 
     function isAdmin() {
@@ -31,11 +31,35 @@ service cloud.firestore {
     // --- Users ---
     match /users/{userId} {
       allow read: if isSignedIn() && (userId == getUserId() || isAdminOrSuperAdmin());
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Listing all users should be restricted to admins.
+      allow list: if isAdminOrSuperAdmin();
+
+      // Users may create ONLY their own profile, and cannot self-approve or self-assign privileged roles.
+      allow create: if isSignedIn() && (
+        (
+          request.auth.uid == userId
+          && (!('approved' in request.resource.data) || request.resource.data.approved == false)
+          && (!('role' in request.resource.data) || request.resource.data.role == 'client')
+        )
+        || isAdminOrSuperAdmin()
+      );
 
       allow update: if isSignedIn() && (
-        isAdminOrSuperAdmin() ||
+        // Super admins can manage users.
+        isSuperAdmin()
+        ||
+        // Admins can update users, but cannot change privileged/security fields.
+        (
+          isAdminOrSuperAdmin()
+          && !request.resource.data.diff(resource.data).changedKeys().hasAny([
+            'role',
+            'approved',
+            'blocked',
+            'forcePasswordReset'
+          ])
+        )
+        ||
+        // Regular users can update only their own safe profile fields.
         (
           userId == getUserId() &&
           request.resource.data
@@ -47,9 +71,15 @@ service cloud.firestore {
               'company',
               'companyDomain',
               'domain',
+              'emailNotifications',
+              'securityAlerts',
+              'darkMode',
               'loginAlerts',
               'passwordUpdatedAt',
-              'avatar'
+              'passwordResetRequestedAt',
+              'avatar',
+              'adminRequestSubmitted',
+              'adminRequestSubmittedAt'
             ])
         )
       );
@@ -100,6 +130,53 @@ service cloud.firestore {
     match /policies/{policyId} {
       allow read: if true;
       allow create, update, delete: if isAdminOrSuperAdmin();
+    }
+
+    // --- System Settings (super admin only) ---
+    match /system_settings/securitySettings {
+      // Public read so signup/login can enforce registration + maintenance.
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /system_settings/{docId} {
+      allow read: if isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    // --- Super Admin Shared Data (metadata) ---
+    match /sharedData/{docId} {
+      // Super admin uploads/shares; recipients can read metadata for download.
+      allow create, update, delete: if isSuperAdmin();
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        (resource.data.sharedWith is list && request.auth.uid in resource.data.sharedWith)
+      );
+    }
+
+    // --- Internal admin group chat ---
+    match /adminChats/{docId} {
+      allow create: if isAdminOrSuperAdmin()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.message is string
+        && request.resource.data.timestamp is timestamp;
+      allow read: if isAdminOrSuperAdmin();
+      allow update, delete: if false;
+    }
+
+    // --- Login history tracking ---
+    match /loginHistory/{docId} {
+      // Users may write their own login events; only super admin can read.
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isSuperAdmin();
+      allow update, delete: if false;
+    }
+
+    // --- Unified audit logs (super admin view) ---
+    match /auditLogs/{docId} {
+      allow create: if isSignedIn();
+      allow read: if isSuperAdmin();
+      allow update, delete: if false;
     }
 
     // --- Shared data ---

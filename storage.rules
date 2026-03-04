@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return isSignedIn()
+        ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (userRole() == 'super_admin' || userRole() == 'superadmin');
+    }
+
+    // Shared data files live at: sharedData/{sharedDataDocId}/{filename}
+    match /sharedData/{docId}/{fileName} {
+      allow write: if isSuperAdmin();
+
+      allow read: if isSignedIn() && (
+        isSuperAdmin()
+        || firestore.get(/databases/(default)/documents/sharedData/$(docId)).data.uploadedBy == request.auth.uid
+        || (
+          firestore.get(/databases/(default)/documents/sharedData/$(docId)).data.sharedWith is list
+          && request.auth.uid in firestore.get(/databases/(default)/documents/sharedData/$(docId)).data.sharedWith
+        )
+      );
+    }
+
+    // Deny everything else by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

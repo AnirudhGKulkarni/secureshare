@@ -11,7 +11,7 @@ const pricingPlans = [
     amount: 2250,
     period: "per user/month",
     description: "Perfect for small teams",
-    features: ["Up to 5 users", "5GB storage per user", "Basic encryption", "Email support"],
+    features: ["Up to 5 users", "Basic encryption", "Email support"],
     cta: "Buy this plan",
     featured: false,
   },
@@ -21,7 +21,7 @@ const pricingPlans = [
     amount: 5550,
     period: "per user/month",
     description: "For growing businesses",
-    features: ["Unlimited users", "Unlimited storage", "Military-grade encryption", "Priority support", "Advanced audit logs"],
+    features: ["Unlimited users", "Premium Hardware Access", "Military-grade encryption", "Priority support", "Advanced audit logs"],
     cta: "Buy this plan",
     featured: true,
   },
@@ -29,9 +29,8 @@ const pricingPlans = [
 
 const comparisonFeatures = [
   { name: "Users", starter: "Up to 5", professional: "Unlimited" },
-  { name: "Storage", starter: "5GB per user", professional: "Unlimited" },
   { name: "Encryption", starter: "Basic AES", professional: "Military-grade" },
-  { name: "API Access", starter: "No", professional: "Yes" },
+  { name: "Premium Hardware Access", starter: "No", professional: "Yes" },
   { name: "Custom Branding", starter: "No", professional: "Yes" },
   { name: "SSO/SAML", starter: "No", professional: "Yes" },
   { name: "Audit Logs", starter: "30 days", professional: "Unlimited" },
@@ -455,7 +454,7 @@ const Pricing: React.FC = () => {
             </div>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <p className="flex items-center gap-2">
-                <span className="text-blue-400">©</span> 2025 trustNshare. All rights reserved.
+                <span className="text-blue-400">©</span> 2026 trustNshare. All rights reserved.
               </p>
               <button
                 type="button"

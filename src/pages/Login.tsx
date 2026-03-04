@@ -68,6 +68,12 @@ const Login: React.FC = () => {
           return;
         }
 
+        if (profile && (profile.approved === false || profile.status === "pending")) {
+          toast.message("Your account is waiting for Super Admin approval.");
+          navigate("/waiting-for-approval", { replace: true });
+          return;
+        }
+
         if (profile && profile.role === "client") {
           toast.success("Login successful!");
           navigate("/client");
@@ -157,6 +163,19 @@ const Login: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Login error:", err);
+      if (err?.code === "auth/network-request-failed") {
+        console.error("🔴 FIREBASE AUTH NETWORK ERROR");
+        console.error("Fix steps:");
+        console.error("1. Go to → https://console.firebase.google.com");
+        console.error("2. Select your project: share-650dc");
+        console.error("3. Click 'Authentication' in left menu");
+        console.error("4. Click 'Sign-in method' tab");
+        console.error("5. Enable 'Email/Password'");
+        console.error("6. Go to 'Settings' → 'Authorized domains'");
+        console.error("7. Add 'localhost' to the list");
+        toast.error("Firebase Auth network error. Check browser console for fix steps.");
+        return;
+      }
       // Show clearer error description
       toast.error(err?.code ? `${err.code}: ${err.message}` : err?.message ?? "Login failed. Please check credentials.");
     } finally {

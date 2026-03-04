@@ -18,6 +18,33 @@ const mockAttackData: AttackDataPoint[] = [
   { label: "Insider", count: 6 },
 ];
 
+interface CybersecurityTip {
+  title: string;
+  description: string;
+  learnMoreLink: string;
+}
+
+const cybersecurityAwarenessTips: CybersecurityTip[] = [
+  { title: "Strong Passwords", description: "Use unique, complex passwords with 12+ characters, including uppercase, lowercase, numbers, and symbols.", learnMoreLink: "https://www.youtube.com/results?search_query=how+to+create+strong+passwords+security" },
+  { title: "Multi-Factor Authentication", description: "Enable MFA on all accounts to add an extra layer of security beyond passwords.", learnMoreLink: "https://www.youtube.com/results?search_query=multi+factor+authentication+explained" },
+  { title: "Recognize Phishing", description: "Be skeptical of unsolicited emails and messages asking for personal or login information.", learnMoreLink: "https://www.youtube.com/results?search_query=how+to+recognize+phishing+emails" },
+  { title: "Keep Software Updated", description: "Regularly update your operating system, browsers, and applications to patch security vulnerabilities.", learnMoreLink: "https://www.youtube.com/results?search_query=why+software+updates+are+important+security" },
+  { title: "Use VPN for Public WiFi", description: "Always use a VPN when connecting to public WiFi networks to encrypt your data.", learnMoreLink: "https://www.youtube.com/results?search_query=VPN+public+wifi+security+explained" },
+  { title: "Verify URLs", description: "Check website URLs carefully before entering sensitive information. Look for 'https://' and secure indicators.", learnMoreLink: "https://www.youtube.com/results?search_query=how+to+verify+secure+websites+https" },
+  { title: "Backup Your Data", description: "Maintain regular backups of important data to protect against ransomware and data loss.", learnMoreLink: "https://www.youtube.com/results?search_query=how+to+backup+important+data+safely" },
+  { title: "Secure Your Devices", description: "Use password protection, screen locks, and encryption on all your devices.", learnMoreLink: "https://www.youtube.com/results?search_query=device+security+encryption+protection" },
+  { title: "Think Before You Click", description: "Don't click on suspicious links or download files from untrusted sources.", learnMoreLink: "https://www.youtube.com/results?search_query=malware+protection+suspicious+links" },
+  { title: "Password Managers", description: "Use a password manager to securely store and manage your passwords across all platforms.", learnMoreLink: "https://www.youtube.com/results?search_query=best+password+managers+explained" },
+  { title: "Security Awareness Training", description: "Participate in cybersecurity awareness training to stay informed about the latest threats.", learnMoreLink: "https://www.youtube.com/results?search_query=cybersecurity+awareness+training+basics" },
+  { title: "Review Privacy Settings", description: "Regularly review and update privacy settings on social media and online accounts.", learnMoreLink: "https://www.youtube.com/results?search_query=social+media+privacy+settings+protection" },
+  { title: "Report Suspicious Activity", description: "Immediately report any suspicious emails, messages, or account activities to your IT team.", learnMoreLink: "https://www.youtube.com/results?search_query=report+suspicious+activity+cybersecurity" },
+  { title: "Zero Trust Principle", description: "Never trust any request or access attempt—always verify identity before granting access.", learnMoreLink: "https://www.youtube.com/results?search_query=zero+trust+security+model+explained" },
+  { title: "Secure File Sharing", description: "Use encrypted channels and secure platforms to share sensitive documents and information.", learnMoreLink: "https://www.youtube.com/results?search_query=secure+file+sharing+encryption" },
+  { title: "Monitor Account Activity", description: "Regularly review login history and account activity for unauthorized access attempts.", learnMoreLink: "https://www.youtube.com/results?search_query=monitor+account+activity+login+history" },
+  { title: "Lock Your Computer", description: "Always lock your device when stepping away to prevent unauthorized physical access.", learnMoreLink: "https://www.youtube.com/results?search_query=computer+security+lock+device" },
+  { title: "Avoid Oversharing", description: "Limit personal information shared online to reduce identity theft and social engineering risks.", learnMoreLink: "https://www.youtube.com/results?search_query=social+engineering+identity+theft+prevention" },
+];
+
 const pricingPlans = [
   {
     name: "Starter",
@@ -51,6 +78,143 @@ const pricingPlans = [
 const trustedPartners = [
   "Microsoft", "Google Cloud", "AWS", "Adobe", "Salesforce", "Slack"
 ];
+
+interface AwarenessCarouselProps {
+  tips: CybersecurityTip[];
+  isDarkMode: boolean;
+}
+
+const AwarenessCarousel: React.FC<AwarenessCarouselProps> = ({ tips, isDarkMode }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const autoPlayIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-advance carousel every 7 seconds
+  useEffect(() => {
+    autoPlayIntervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev === tips.length - 1 ? 0 : prev + 1));
+    }, 7000);
+
+    return () => {
+      if (autoPlayIntervalRef.current) {
+        clearInterval(autoPlayIntervalRef.current);
+      }
+    };
+  }, [tips.length]);
+
+  const goToPrev = () => {
+    setCurrentIndex((prev) => (prev === 0 ? tips.length - 1 : prev - 1));
+    if (autoPlayIntervalRef.current) {
+      clearInterval(autoPlayIntervalRef.current);
+    }
+    autoPlayIntervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev === tips.length - 1 ? 0 : prev + 1));
+    }, 7000);
+  };
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev === tips.length - 1 ? 0 : prev + 1));
+    if (autoPlayIntervalRef.current) {
+      clearInterval(autoPlayIntervalRef.current);
+    }
+    autoPlayIntervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev === tips.length - 1 ? 0 : prev + 1));
+    }, 7000);
+  };
+
+  const currentTip = tips[currentIndex];
+  const cardBgClass = isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200";
+
+  return (
+    <div className="flex flex-col items-center gap-8 w-full">
+      {/* Full-Width Carousel Card - Similar to Comprehensive Security Solutions */}
+      <div
+        className={`${cardBgClass} p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border group w-full ${
+          isDarkMode ? "hover:border-blue-500 hover:bg-gray-700/50" : "hover:border-blue-400 hover:bg-blue-50/30"
+        }`}
+      >
+        <div className="flex items-start gap-8">
+          {/* Icon Container */}
+          <div className={`w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 flex-shrink-0`}>
+            <span className="text-3xl">💡</span>
+          </div>
+
+          {/* Content Container */}
+          <div className="flex-1 min-w-0">
+            <h3
+              className={`text-2xl font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"} transition-all duration-700 animate-fade-in`}
+            >
+              {currentTip.title}
+            </h3>
+            <p
+              className={`text-base leading-relaxed mb-4 ${isDarkMode ? "text-gray-300" : "text-gray-700"} transition-all duration-700 animate-fade-in`}
+            >
+              {currentTip.description}
+            </p>
+            <a
+              href={currentTip.learnMoreLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-2 text-sm font-semibold transition-all duration-300 group/link ${
+                isDarkMode
+                  ? "text-blue-400 hover:text-blue-300"
+                  : "text-blue-600 hover:text-blue-700"
+              }`}
+            >
+              Learn More <ArrowUp className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Controls */}
+      <div className="flex items-center gap-4 md:gap-8 justify-center flex-wrap">
+        <button
+          onClick={goToPrev}
+          className={`p-3 rounded-full transition-all duration-300 hover:scale-110 active:scale-95 ${
+            isDarkMode
+              ? "bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 hover:border-blue-500"
+              : "bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300 hover:border-blue-400"
+          }`}
+          aria-label="Previous tip"
+        >
+          <ChevronLeft size={24} />
+        </button>
+
+        {/* Dots Indicator */}
+        <div className="flex gap-2 flex-wrap justify-center">
+          {tips.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={`h-3 rounded-full transition-all duration-300 ${
+                idx === currentIndex
+                  ? isDarkMode
+                    ? "bg-blue-500 w-8 shadow-lg"
+                    : "bg-blue-600 w-8 shadow-lg"
+                  : isDarkMode
+                  ? "bg-gray-700 w-3 hover:bg-gray-600"
+                  : "bg-gray-300 w-3 hover:bg-gray-400"
+              }`}
+              aria-label={`Go to tip ${idx + 1}`}
+            />
+          ))}
+        </div>
+
+        <button
+          onClick={goToNext}
+          className={`p-3 rounded-full transition-all duration-300 hover:scale-110 active:scale-95 ${
+            isDarkMode
+              ? "bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 hover:border-blue-500"
+              : "bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300 hover:border-blue-400"
+          }`}
+          aria-label="Next tip"
+        >
+          <ChevronRight size={24} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const FrontPage: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -472,28 +636,17 @@ const FrontPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Statistics Section */}
-      <section id="stats" className={`py-16 px-6`}>
+      {/* Cybersecurity Awareness Section */}
+      <section id="awareness" className={`py-16 px-6`}>
         <div className="max-w-7xl mx-auto">
-          <h2 className={`text-3xl font-bold mb-12 text-center animate-fade-in ${isDarkMode ? "text-white" : "text-gray-900"}`}>Current Cyber Threats</h2>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {mockAttackData.map((attack, idx) => (
-              <a
-                key={attack.label}
-                href="https://www.cybersecuritydive.com/" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${cardBgClass} p-6 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer group transform hover:-translate-y-2 border ${
-                  isDarkMode ? "border-gray-700 hover:border-blue-500" : "border-gray-200 hover:border-blue-400"
-                }`}
-                style={{animationDelay: `${idx * 0.1}s`}}
-              >
-                <h3 className={`text-3xl font-bold mb-2 group-hover:text-blue-600 transition-colors duration-300 ${isDarkMode ? "text-white" : "text-gray-900"}`}>{attack.count}</h3>
-                <p className={`text-sm font-medium mb-2 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>{attack.label} Attacks</p>
-                <p className={`text-xs flex items-center gap-1 opacity-75 group-hover:opacity-100 transition-opacity ${isDarkMode ? "text-gray-500" : "text-gray-500"}`}>Read latest articles <span className="group-hover:translate-x-1 transition-transform">→</span></p>
-              </a>
-            ))}
-          </div>
+          <h2 className={`text-3xl font-bold mb-4 text-center animate-fade-in ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+            Cybersecurity Awareness
+          </h2>
+          <p className={`text-center mb-12 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+            Essential security practices everyone should know
+          </p>
+          
+          <AwarenessCarousel tips={cybersecurityAwarenessTips} isDarkMode={isDarkMode} />
         </div>
       </section>
     </div>
@@ -608,40 +761,6 @@ const FrontPage: React.FC = () => {
         </div>
       </section>
 
-     
-      {/* Testimonials Section - Enhanced */}
-      <section id="testimonials" className={`py-20 px-6 ${bgClass}`}>
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16 animate-fade-in">
-            <h2 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>Trusted by Industry Leaders</h2>
-            <p className={`text-lg ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-              See what our customers have to say about trustNshare
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            {testimonials.map((testimonial, idx) => (
-              <div 
-                key={idx} 
-                className={`${cardBgClass} p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border group animate-fade-in ${
-                  isDarkMode ? "border-gray-700 hover:border-blue-500" : "border-gray-200 hover:border-blue-400"
-                }`}
-                style={{animationDelay: `${idx * 0.1}s`}}
-              >
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: testimonial.rating }).map((_, i) => (
-                    <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400 transition-transform group-hover:scale-110" />
-                  ))}
-                </div>
-                <p className={`mb-4 italic leading-relaxed ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>"{testimonial.content}"</p>
-                <div className="border-t" style={{borderColor: isDarkMode ? '#374151' : '#e5e7eb'}}></div>
-                <p className={`font-bold text-sm mt-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>{testimonial.name}</p>
-                <p className={`text-xs group-hover:text-blue-500 transition-colors ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>{testimonial.company}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Footer - Enhanced */}
       <footer 
         className={`footer-bg-image ${isDarkMode ? "bg-gray-900 border-t border-gray-800 text-white" : "bg-white border-t border-gray-200 text-gray-900"} py-16 px-6`}
@@ -737,7 +856,7 @@ const FrontPage: React.FC = () => {
             </div>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <p className="flex items-center gap-2">
-                <span className="text-blue-400">©</span> 2025 trustNshare. All rights reserved.
+                <span className="text-blue-400">©</span> 2026 trustNshare. All rights reserved.
               </p>
               <button
                 type="button"

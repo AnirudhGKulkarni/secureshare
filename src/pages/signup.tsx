@@ -50,9 +50,8 @@ const Signup: React.FC = () => {
         role,
       });
 
-      toast.success("Account created! Please sign in.");
-
-      navigate("/login", { state: { fromSignup: true } });
+      toast.success("Account created! Redirecting to admin registration...");
+      navigate("/admin-signup", { replace: true });
     } catch (err: any) {
       toast.error(err?.message ?? "Sign up failed");
     } finally {

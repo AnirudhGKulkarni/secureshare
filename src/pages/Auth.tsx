@@ -7,9 +7,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { getDoc, doc, setDoc, collection, query, where, getDocs, orderBy, startAt, endAt, limit, documentId } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  documentId,
+  endAt,
+  getDoc,
+  getDocs,
+  increment,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  startAt,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { firestore, auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup, getIdTokenResult } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, getIdTokenResult, sendPasswordResetEmail } from "firebase/auth";
+import { writeLoginHistory } from "@/features/superAdmin/services/loginHistoryService";
+import { writeAuditLog } from "@/features/superAdmin/services/auditLogsService";
+import { getSecuritySettings } from "@/features/superAdmin/services/securitySettingsService";
+import { isSuperAdminRole } from "@/features/superAdmin/services/superAdminGuards";
 
 const domainOptions = ["IT", "Logistics", "HR", "Finance", "Retail", "Healthcare", "Other"] as const;
 
@@ -55,7 +76,7 @@ const Auth: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, signup } = useAuth();
+  const { login, signup, logout } = useAuth();
   const navigate = useNavigate();
   const googleInProgressRef = useRef(false);
   const usernameCheckRef = useRef(0);
@@ -204,6 +225,7 @@ const Auth: React.FC = () => {
     setIsLoading(true);
     try {
       const user = await login(email.trim(), password);
+
       console.log("=== AUTH: Login succeeded, user UID:", user.uid);
       try {
         console.log("=== AUTH: Reading Firestore profile...");
@@ -211,6 +233,12 @@ const Auth: React.FC = () => {
         console.log("=== AUTH: Firestore snap exists:", snap.exists());
         const profile = snap.exists() ? snap.data() : null;
         console.log("=== AUTH: Profile data:", profile);
+
+        // Verified but not yet approved
+        if (profile && profile.role !== "super_admin" && (profile.approved === false || profile.status === "pending")) {
+          navigate("/waiting-for-approval", { replace: true });
+          return;
+        }
 
         // If status is pending and admin signup exists, redirect to waiting page
         if (profile?.status === "pending") {
@@ -222,7 +250,7 @@ const Auth: React.FC = () => {
             );
             const s = await getDocs(q);
             if (!s.empty) {
-              navigate("/waiting-approval");
+              navigate("/waiting-for-approval", { replace: true });
               return;
             } else {
               toast.message("Please complete Admin Registration.");
@@ -325,6 +353,8 @@ const Auth: React.FC = () => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
+      const deviceInfo = typeof navigator !== "undefined" ? navigator.userAgent : "";
+
       // Ensure a Firestore user doc exists; if not, create a default one.
       const ref = doc(firestore, "users", user.uid);
       let snap = null as any;
@@ -343,11 +373,12 @@ const Auth: React.FC = () => {
         const [firstName = "", ...rest] = displayName.split(" ");
         const lastName = rest.join(" ") || "";
 
-        // Infer role from token claims if possible (so older admins without a profile aren't created as clients)
-        let inferredRole: "admin" | "client" = "client";
+        // Infer role from token claims if possible (so older admins/superadmins without a profile aren't created as clients)
+        let inferredRole: "admin" | "client" | "super_admin" = "client";
         try {
           const id = await getIdTokenResult(user);
-          if ((id.claims as any)?.admin) inferredRole = "admin";
+          if ((id.claims as any)?.super_admin || (id.claims as any)?.superadmin) inferredRole = "super_admin";
+          else if ((id.claims as any)?.admin) inferredRole = "admin";
         } catch (err) {
           console.warn("Could not read token claims while creating user doc:", err);
         }
@@ -378,15 +409,105 @@ const Auth: React.FC = () => {
       try {
         const snap2 = await getDoc(doc(firestore, "users", user.uid));
         const profile = snap2.exists() ? snap2.data() : null;
+
+        // Best-effort security enforcement for Google sign-in too
+        try {
+          const settings = await getSecuritySettings();
+
+          if (profile?.blocked === true) {
+            await logout();
+            toast.error("Your account has been blocked. Contact support.");
+            return;
+          }
+
+          if (settings?.maintenanceMode === true && !isSuperAdminRole(profile?.role)) {
+            await logout();
+            toast.error("The system is currently in maintenance mode.");
+            return;
+          }
+
+          if (profile?.forcePasswordReset === true) {
+            try {
+              if (user.email) await sendPasswordResetEmail(auth, user.email);
+            } catch (e) {
+              console.warn("Could not send password reset email (google sign-in):", e);
+            }
+
+            try {
+              await updateDoc(doc(firestore, "users", user.uid), {
+                forcePasswordReset: false,
+                passwordResetRequestedAt: serverTimestamp(),
+              });
+            } catch (e) {
+              console.warn("Could not clear forcePasswordReset flag (google sign-in):", e);
+            }
+
+            await logout();
+            toast.error("Password reset required. Please check your email.");
+            return;
+          }
+        } catch (e) {
+          console.warn("Google sign-in enforcement skipped due to error:", e);
+        }
+
         toast.success("Signed in with Google");
 
-        // Check token claims (authoritative for admin)
+        // Best-effort login tracking (keep legacy + new collections consistent)
+        try {
+          await setDoc(doc(firestore, "user_logins", user.uid), { lastLogin: serverTimestamp(), totalLogins: increment(1) }, { merge: true });
+        } catch (e) {
+          console.warn("Failed to write user_logins doc (google):", e);
+        }
+
+        try {
+          await addDoc(collection(firestore, "audit_logs"), {
+            userId: user.uid,
+            action: "LOGIN",
+            timestamp: serverTimestamp(),
+            createdAt: serverTimestamp(),
+          });
+        } catch (e) {
+          console.warn("Failed to append audit_logs entry (google):", e);
+        }
+
+        try {
+          await writeLoginHistory({
+            userId: user.uid,
+            email: user.email ?? "",
+            deviceInfo,
+            ipAddress: null,
+            location: null,
+          });
+        } catch (e) {
+          console.warn("Failed to write loginHistory (google):", e);
+        }
+
+        try {
+          await writeAuditLog({
+            actionType: "LOGIN",
+            performedBy: user.uid,
+            performedByName: user.displayName || user.email || "",
+            targetUser: user.uid,
+            details: { deviceInfo, providerId: "google.com" },
+          });
+        } catch (e) {
+          console.warn("Failed to write auditLogs LOGIN entry (google):", e);
+        }
+
+        // Check token claims (authoritative for admin/superadmin)
         let isAdminClaim2 = false;
+        let isSuperAdminClaim2 = false;
         try {
           const id = await getIdTokenResult(user);
           if ((id.claims as any)?.admin) isAdminClaim2 = true;
+          if ((id.claims as any)?.super_admin || (id.claims as any)?.superadmin) isSuperAdminClaim2 = true;
         } catch (err) {
           console.warn("Could not read token claims after Google sign-in:", err);
+        }
+
+        if (profile && isSuperAdminRole(profile.role)) {
+          navigate("/super-admin");
+          return;
         }
 
         // Prefer profile role if available
@@ -401,6 +522,18 @@ const Auth: React.FC = () => {
         }
 
         // Fallback to token claims for Google-signins
+        if (isSuperAdminClaim2) {
+          try {
+            if (!profile || !isSuperAdminRole(profile.role)) {
+              await setDoc(doc(firestore, "users", user.uid), { role: "super_admin" }, { merge: true });
+            }
+          } catch (err) {
+            console.warn("Could not sync superadmin role to Firestore (google):", err);
+          }
+          navigate("/super-admin");
+          return;
+        }
+
         if (isAdminClaim2) {
           try {
             if (!profile || profile.role !== "admin") {
@@ -421,7 +554,8 @@ const Auth: React.FC = () => {
         // but check token claims first to respect any admin claims.
         try {
           const id = await getIdTokenResult(user);
-          if ((id.claims as any)?.admin) navigate("/dashboard");
+          if ((id.claims as any)?.super_admin || (id.claims as any)?.superadmin) navigate("/super-admin");
+          else if ((id.claims as any)?.admin) navigate("/dashboard");
           else navigate("/client");
         } catch (err2) {
           console.warn("Could not read token claims after Google profile read failure:", err2);
@@ -429,6 +563,19 @@ const Auth: React.FC = () => {
         }
       }
     } catch (err: any) {
+      if (err?.code === "auth/network-request-failed") {
+        console.error("🔴 FIREBASE AUTH NETWORK ERROR");
+        console.error("Fix steps:");
+        console.error("1. Go to → https://console.firebase.google.com");
+        console.error("2. Select your project: share-650dc");
+        console.error("3. Click 'Authentication' in left menu");
+        console.error("4. Click 'Sign-in method' tab");
+        console.error("5. Enable 'Email/Password'");
+        console.error("6. Go to 'Settings' → 'Authorized domains'");
+        console.error("7. Add 'localhost' to the list");
+        toast.error("Firebase Auth network error. Check console for fix steps.");
+        return;
+      }
       // Many browsers / flows may fire a cancelled-popup-request when a popup
       // was programmatically closed because another auth request took precedence.
       // This is noisy but not actionable if the sign-in actually completed.
@@ -507,9 +654,9 @@ const Auth: React.FC = () => {
         console.warn("Could not save username to user profile:", err);
       }
 
-      toast.success("Account created! Please complete Admin Registration.");
-      // Navigate to Admin Signup to submit verification documents
-      navigate("/admin-signup");
+      // Keep user signed in and redirect to admin registration with autofilled details
+      toast.success("Account created! Redirecting to admin registration...");
+      navigate("/admin-signup", { replace: true });
     } catch (err: any) {
       toast.error(err?.message ?? "Sign up failed");
     } finally {

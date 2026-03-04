@@ -11,16 +11,26 @@ export const RoleProtectedRoute: React.FC<{ children: React.ReactNode; requiredR
 
   // Determine redirect target based on current auth/profile state. Pure function — no hooks inside.
   const computeRedirect = (cu: any, pr: any): string | null => {
-    const status = pr?.status || "active";
     if (!cu) return "/login";
     if (!pr) return "/login";
 
-    if (pendingOnly) {
-      if (status === "pending") return null;
-      return pr.role === "super_admin" ? "/super-admin" : pr.role === "admin" ? "/dashboard" : "/client";
+    const roleRaw = pr.role;
+    const role = roleRaw === "superadmin" ? "super_admin" : roleRaw;
+
+    // Check if user has submitted an admin request and is waiting for approval
+    if (pr?.adminRequestSubmitted === true && role !== "admin") {
+      // They submitted an admin request but haven't been approved yet
+      // Redirect to waiting approval page (regardless of what route they're trying to access)
+      return "/waiting-approval";
     }
 
-    if (status === "pending" && !allowPending) return "/waiting-approval";
+    const status = pr?.status || "active";
+    const isPending = status === "pending" || pr?.approved === false;
+
+    if (pendingOnly) {
+      if (isPending) return null;
+      return role === "super_admin" ? "/super-admin" : role === "admin" ? "/dashboard" : "/client";
+    }
 
     if (requiredRole === "admin" && pr.role === "admin") {
       const isActive = pr.status === "active";
@@ -29,9 +39,9 @@ export const RoleProtectedRoute: React.FC<{ children: React.ReactNode; requiredR
     }
 
     // Allow super_admin users to access admin-level routes
-    if (requiredRole === 'admin' && pr.role === 'super_admin') return null;
+    if (requiredRole === 'admin' && role === 'super_admin') return null;
 
-    if (pr.role !== requiredRole) return pr.role === "super_admin" ? "/super-admin" : pr.role === "admin" ? "/dashboard" : "/client";
+    if (role !== requiredRole) return role === "super_admin" ? "/super-admin" : role === "admin" ? "/dashboard" : "/client";
 
     return null;
   };
