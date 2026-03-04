@@ -76,7 +76,7 @@ const Auth: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, signup, logout } = useAuth();
+  const { login, signup, logout, profile: authProfile } = useAuth();
   const navigate = useNavigate();
   const googleInProgressRef = useRef(false);
   const usernameCheckRef = useRef(0);
@@ -227,103 +227,12 @@ const Auth: React.FC = () => {
       const user = await login(email.trim(), password);
 
       console.log("=== AUTH: Login succeeded, user UID:", user.uid);
-      try {
-        console.log("=== AUTH: Reading Firestore profile...");
-        const snap = await getDoc(doc(firestore, "users", user.uid));
-        console.log("=== AUTH: Firestore snap exists:", snap.exists());
-        const profile = snap.exists() ? snap.data() : null;
-        console.log("=== AUTH: Profile data:", profile);
 
-        // Verified but not yet approved
-        if (profile && profile.role !== "super_admin" && (profile.approved === false || profile.status === "pending")) {
-          navigate("/waiting-for-approval", { replace: true });
-          return;
-        }
-
-        // If status is pending and admin signup exists, redirect to waiting page
-        if (profile?.status === "pending") {
-          try {
-            const q = query(
-              collection(firestore, "approval_documents"),
-              where("email", "==", profile?.email ?? user.email ?? ""),
-              where("status", "==", "pending")
-            );
-            const s = await getDocs(q);
-            if (!s.empty) {
-              navigate("/waiting-for-approval", { replace: true });
-              return;
-            } else {
-              toast.message("Please complete Admin Registration.");
-              navigate("/admin-signup");
-              return;
-            }
-          } catch (checkErr) {
-            console.warn("Admin signup check failed:", checkErr);
-            // If we can't verify, guide user to Admin Signup
-            navigate("/admin-signup");
-            return;
-          }
-        }
-
-        toast.success("Login successful!");
-
-        console.log("=== AUTH LOGIN DEBUG ===");
-        console.log("Profile exists:", !!profile);
-        console.log("Profile role:", profile?.role);
-        console.log("Profile status:", profile?.status);
-
-        // Handle super_admin role
-        if (profile && profile.role === "super_admin") {
-          console.log("Navigating to super-admin dashboard");
-          navigate("/super-admin");
-          return;
-        }
-
-        // Prefer authoritative Firestore profile when available.
-        if (profile && profile.role === "client") {
-          console.log("Navigating to client dashboard");
-          navigate("/client");
-          return;
-        }
-
-        if (profile && profile.role === "admin") {
-          console.log("Navigating to admin dashboard");
-          navigate("/dashboard");
-          return;
-        }
-
-        // If profile is missing or role unknown, check token claims (server-side) as fallback.
-        try {
-          const id = await getIdTokenResult(user);
-          console.log("Token claims:", id.claims);
-          if ((id.claims as any)?.super_admin) {
-            console.log("Token claims: super_admin found, navigating");
-            navigate("/super-admin");
-            return;
-          }
-          if ((id.claims as any)?.admin) {
-            console.log("Token claims: admin found, navigating");
-            // ensure Firestore reflects admin role if possible
-            try {
-              const ref = doc(firestore, "users", user.uid);
-              await setDoc(ref, { role: "admin" }, { merge: true });
-            } catch (err) {
-              console.warn("Could not sync admin role to Firestore:", err);
-            }
-            navigate("/dashboard");
-            return;
-          }
-        } catch (err) {
-          console.warn("Could not read token claims after login (fallback):", err);
-        }
-
-        // Default to client for safety when role not known.
-        navigate("/client");
-      } catch (err) {
-        console.warn("Profile quick-read failed:", err);
+      // Prefer profile loaded by AuthContext (AuthContext.login awaits loadProfile()).
+      // `authProfile` === undefined indicates a server/read error occurred while loading profile.
+      if (typeof authProfile === "undefined") {
+        console.warn("Profile not available from AuthContext (fallback to token claims)");
         toast.success("Signed in — loading your data...");
-        // If profile read fails (often due to Firestore rules), prefer client routing
-        // unless token claims explicitly mark user as admin.
         try {
           const id = await getIdTokenResult(user);
           console.log("Fallback token claims:", id.claims);
@@ -332,10 +241,98 @@ const Auth: React.FC = () => {
           else navigate("/client");
         } catch (err2) {
           console.warn("Could not read token claims after profile read failure:", err2);
-          // Default to client to avoid sending new users to admin dashboard.
           navigate("/client");
         }
+        return;
       }
+
+      const profile = authProfile as any | null;
+
+      // Verified but not yet approved
+      if (profile && profile.role !== "super_admin" && (profile.approved === false || profile.status === "pending")) {
+        navigate("/waiting-for-approval", { replace: true });
+        return;
+      }
+
+      // If status is pending and admin signup exists, redirect to waiting page
+      if (profile?.status === "pending") {
+        try {
+          const q = query(
+            collection(firestore, "approval_documents"),
+            where("email", "==", profile?.email ?? user.email ?? ""),
+            where("status", "==", "pending")
+          );
+          const s = await getDocs(q);
+          if (!s.empty) {
+            navigate("/waiting-for-approval", { replace: true });
+            return;
+          } else {
+            toast.message("Please complete Admin Registration.");
+            navigate("/admin-signup");
+            return;
+          }
+        } catch (checkErr) {
+          console.warn("Admin signup check failed:", checkErr);
+          // If we can't verify, guide user to Admin Signup
+          navigate("/admin-signup");
+          return;
+        }
+      }
+
+      toast.success("Login successful!");
+
+      console.log("=== AUTH LOGIN DEBUG ===");
+      console.log("Profile exists:", !!profile);
+      console.log("Profile role:", profile?.role);
+      console.log("Profile status:", profile?.status);
+
+      // Handle super_admin role
+      if (profile && profile.role === "super_admin") {
+        console.log("Navigating to super-admin dashboard");
+        navigate("/super-admin");
+        return;
+      }
+
+      // Prefer authoritative Firestore profile when available.
+      if (profile && profile.role === "client") {
+        console.log("Navigating to client dashboard");
+        navigate("/client");
+        return;
+      }
+
+      if (profile && profile.role === "admin") {
+        console.log("Navigating to admin dashboard");
+        navigate("/dashboard");
+        return;
+      }
+
+      // If profile is missing or role unknown, check token claims (server-side) as fallback.
+      try {
+        const id = await getIdTokenResult(user);
+        console.log("Token claims:", id.claims);
+        if ((id.claims as any)?.super_admin) {
+          console.log("Token claims: super_admin found, navigating");
+          navigate("/super-admin");
+          return;
+        }
+        if ((id.claims as any)?.admin) {
+          console.log("Token claims: admin found, navigating");
+          // ensure Firestore reflects admin role if possible
+          try {
+            const ref = doc(firestore, "users", user.uid);
+            await setDoc(ref, { role: "admin" }, { merge: true });
+          } catch (err) {
+            console.warn("Could not sync admin role to Firestore:", err);
+          }
+          navigate("/dashboard");
+          return;
+        }
+      } catch (err) {
+        console.warn("Could not read token claims after login (fallback):", err);
+      }
+
+      // Default to client for safety when role not known.
+      navigate("/client");
     } catch (err: any) {
       console.error("Login error:", err);
       toast.error(err?.code ? `${err.code}: ${err.message}` : err?.message ?? "Login failed. Please check credentials.");

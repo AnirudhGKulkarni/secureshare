@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   updateProfile,
   User,
+  getIdTokenResult,
 } from "firebase/auth";
 import { auth, firestore } from "@/lib/firebase";
 import { doc, setDoc, getDoc, updateDoc, addDoc, collection, serverTimestamp, increment } from "firebase/firestore";
@@ -63,12 +64,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const snap = await getDoc(ref);
       if (snap.exists()) {
-        const profileData = snap.data();
+        let profileData = snap.data();
+        // If the profile doc exists but role is missing, try to infer from token claims
+        try {
+          const user = auth.currentUser;
+          if (user && !profileData.role) {
+            const id = await getIdTokenResult(user);
+            if ((id.claims as any)?.super_admin || (id.claims as any)?.superadmin) profileData.role = "super_admin";
+            else if ((id.claims as any)?.admin) profileData.role = "admin";
+          }
+        } catch (e) {
+          console.warn("Could not read token claims while loading profile (non-blocking):", e);
+        }
+
         console.log("AuthContext - loadProfile found profile:", profileData);
         setProfile(profileData);
         return;
       }
       // If profile doesn't exist, do NOT auto-create. Treat as unregistered.
+      // If no profile doc, check token claims to infer role so admin UI can still render.
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          const id = await getIdTokenResult(user);
+          if ((id.claims as any)?.super_admin || (id.claims as any)?.superadmin) {
+            const inferred: any = { role: "super_admin", email: user.email };
+            console.log("AuthContext - No profile doc, inferred super_admin from token claims");
+            setProfile(inferred);
+            return;
+          } else if ((id.claims as any)?.admin) {
+            const inferred: any = { role: "admin", email: user.email };
+            console.log("AuthContext - No profile doc, inferred admin from token claims");
+            setProfile(inferred);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not infer role from token claims (non-blocking):", e);
+      }
+
       console.log("AuthContext - No profile found for uid, leaving profile=null (unregistered)");
       setProfile(null as any);
       return;
@@ -125,9 +159,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loadProfile(cred.user.uid);
 
     // Enforce blocked accounts and maintenance mode (best-effort client enforcement)
+    // IMPORTANT: Never fail login just because Firestore reads are denied.
     try {
-      const snap = await getDoc(doc(firestore, "users", cred.user.uid));
-      const pr = snap.exists() ? (snap.data() as any) : null;
+      let pr: any = null;
+      try {
+        const snap = await getDoc(doc(firestore, "users", cred.user.uid));
+        pr = snap.exists() ? (snap.data() as any) : null;
+      } catch (e) {
+        console.warn("Could not read users doc during enforcement (non-blocking):", e);
+        pr = null;
+      }
 
       if (pr?.blocked === true) {
         await signOut(auth);
@@ -136,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw err;
       }
 
+      // settings read is best-effort (getSecuritySettings returns null on denied)
       const settings = await getSecuritySettings();
       if (settings?.maintenanceMode === true && !isSuperAdminRole(pr?.role)) {
         await signOut(auth);
@@ -162,8 +204,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw err;
       }
     } catch (e) {
-      // If enforcement throws, surface it
-      if ((e as any)?.code) throw e;
+      // If enforcement throws one of our explicit auth errors, surface it.
+      if ((e as any)?.code?.startsWith?.("auth/")) throw e;
+      // Otherwise, never block login.
+      console.warn("Enforcement skipped due to error (non-blocking):", e);
     }
     // Record login timestamp and increment total login count for the user
     try {

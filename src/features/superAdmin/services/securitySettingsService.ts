@@ -5,9 +5,16 @@ import type { SecuritySettingsDoc } from "../types";
 export const SECURITY_SETTINGS_REF = doc(firestore, "system_settings", "securitySettings");
 
 export async function getSecuritySettings(): Promise<SecuritySettingsDoc | null> {
-  const snap = await getDoc(SECURITY_SETTINGS_REF);
-  if (!snap.exists()) return null;
-  return snap.data() as SecuritySettingsDoc;
+  try {
+    const snap = await getDoc(SECURITY_SETTINGS_REF);
+    if (!snap.exists()) return null;
+    return snap.data() as SecuritySettingsDoc;
+  } catch (err) {
+    // Best-effort: security settings are used for UX gating only.
+    // If rules deny reading this doc, do not block auth flows.
+    console.warn("getSecuritySettings failed (non-blocking):", err);
+    return null;
+  }
 }
 
 export function subscribeSecuritySettings(cb: (settings: SecuritySettingsDoc | null) => void): () => void {

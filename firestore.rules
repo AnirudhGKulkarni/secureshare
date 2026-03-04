@@ -13,7 +13,9 @@ service cloud.firestore {
     }
 
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(getUserId())).data.role;
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(getUserId()))
+        ? get(/databases/$(database)/documents/users/$(getUserId())).data.role
+        : null;
     }
 
     function isSuperAdmin() {
