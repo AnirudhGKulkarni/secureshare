@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users as UsersIcon, UserPlus, Trash2 } from 'lucide-react';
-import { firestore } from '@/lib/firebase';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { firestore, auth } from '@/lib/firebase';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
@@ -143,52 +144,17 @@ const SuperUsers = () => {
     }
     setAdding(true);
     try {
-      let createdUid: string | undefined;
+      // Create Firebase Auth user using client SDK
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        newUser.email.trim().toLowerCase(),
+        newUserPassword
+      );
+      const uid = userCredential.user.uid;
 
-      // 1) Try secure backend (Admin SDK) if configured
-      const endpoint = import.meta.env.VITE_ADMIN_CREATE_USER_URL as string | undefined;
-      if (endpoint) {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: newUser.email.trim().toLowerCase(),
-            password: newUserPassword,
-            displayName: `${newUser.firstName} ${newUser.lastName}`.trim(),
-            role: newUser.role,
-          }),
-        });
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`Auth user creation failed: ${res.status} ${text}`);
-        }
-        const data = await res.json().catch(() => ({}));
-        createdUid = data.uid as string | undefined;
-      } else {
-        // 2) Fallback: Firebase Identity Toolkit (client REST). Keeps current session intact.
-        const apiKey = import.meta.env.VITE_FIREBASE_API_KEY as string | undefined;
-        if (!apiKey) throw new Error('Missing VITE_FIREBASE_API_KEY');
-        const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: newUser.email.trim().toLowerCase(),
-            password: newUserPassword,
-            returnSecureToken: true,
-          }),
-        });
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error(`Auth signUp failed: ${res.status} ${text}`);
-        }
-        const data = await res.json();
-        createdUid = data.localId;
-      }
-
-      // 3) Create/merge Firestore profile with uid doc id
-      const uid = createdUid || crypto.randomUUID();
-      await (await import('firebase/firestore')).setDoc(
-        (await import('firebase/firestore')).doc(firestore, 'users', uid),
+      // Create/merge Firestore profile document
+      await setDoc(
+        doc(firestore, 'users', uid),
         {
           uid,
           firstName: newUser.firstName.trim(),
@@ -201,12 +167,23 @@ const SuperUsers = () => {
         },
         { merge: true }
       );
+      
       setNewUser({ firstName: '', lastName: '', email: '', role: 'client' });
       setNewUserPassword('');
-      toast.success('User profile created (Firestore)');
+      toast.success(`User created successfully with UID: ${uid}`);
     } catch (e: any) {
-      console.error('Add user failed:', e);
-      toast.error(e?.message || 'Failed to add user');
+      console.error('Add user failed - Full error:', e);
+      console.error('Error code:', e?.code);
+      console.error('Error message:', e?.message);
+      
+      const errorMsg = e?.code === 'auth/email-already-in-use' 
+        ? 'Email already in use'
+        : e?.code === 'auth/weak-password'
+        ? 'Password is too weak (min 6 characters)'
+        : e?.code === 'permission-denied'
+        ? 'Permission denied - Check that your admin role is set in Firestore and rules are deployed'
+        : e?.message || 'Failed to add user';
+      toast.error(errorMsg);
     } finally {
       setAdding(false);
     }

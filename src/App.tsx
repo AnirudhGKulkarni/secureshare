@@ -167,17 +167,33 @@ const ScrollToTop: React.FC = () => {
   return null;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+const App = () => {
+  // Initialize SCDA on app startup
+  React.useEffect(() => {
+    const initScda = async () => {
+      try {
+        const { initializeSCDA } = await import('@/lib/scda');
+        await initializeSCDA();
+        console.log('SCDA system initialized');
+      } catch (error) {
+        console.warn('SCDA initialization failed:', error);
+      }
+    };
 
-        <BrowserRouter>
-          <ScrollToTop />
-          {/* ErrorBoundary wraps routes so rendering errors show a helpful message instead of a white page */}
-          <ErrorBoundary>
+    initScda();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+
+          <BrowserRouter>
+            <ScrollToTop />
+            {/* ErrorBoundary wraps routes so rendering errors show a helpful message instead of a white page */}
+            <ErrorBoundary>
             <Routes>
 
             {/* ⭐ PUBLIC FRONT PAGE ⭐ */}
@@ -397,6 +413,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

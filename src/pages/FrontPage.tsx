@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { 
   ChevronLeft, ChevronRight, Shield, Lock, Users, Eye, CheckCircle, 
-  Zap, Globe, BarChart3, FileText, Award, Star, Facebook, Linkedin, Instagram, ArrowUp
+  Zap, Globe, BarChart3, FileText, Award, Star, Facebook, Linkedin, Instagram, ArrowUp, AlertTriangle
 } from "lucide-react";
 import FrontNavbar from "@/components/FrontNavbar";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -362,6 +362,21 @@ const FrontPage: React.FC = () => {
       title: "Audit Logs",
       description: "Complete visibility into who accessed what and when",
     },
+    {
+      icon: Shield,
+      title: "SCDA Algorithm",
+      description: "Advanced Secure Contextual Data Authorization with role-based protection",
+    },
+    {
+      icon: Lock,
+      title: "Cryptographic Signatures",
+      description: "Data Fingerprinting, Session Identity Tokens, and Trust Signatures",
+    },
+    {
+      icon: AlertTriangle,
+      title: "Real-time Threat Detection",
+      description: "Brute-force protection, session validation, and anomaly detection",
+    },
   ];
 
   // Auto-advance carousel every 4 seconds
@@ -651,13 +666,52 @@ const FrontPage: React.FC = () => {
       </section>
     </div>
 
+      {/* SCDA Algorithm Showcase Section */}
+      <section className={`py-20 px-6 ${isDarkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16 animate-fade-in">
+            <h2 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>Enterprise-Grade Security with SCDA</h2>
+            <p className={`text-lg ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+              Advanced Secure Contextual Data Authorization - Military-grade protection with intelligent access control
+            </p>
+          </div>
+
+          {/* SCDA Key Concepts Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            <div className={`${cardBgClass} p-8 rounded-2xl shadow-lg border ${isDarkMode ? "border-gray-700" : "border-blue-200"}`}>
+              <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center mb-4 shadow-lg">
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <h3 className={`text-lg font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>4-Tier Role Hierarchy</h3>
+              <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>SuperSuperAdmin, SuperAdmin, Admin, Client - with granular permission inheritance</p>
+            </div>
+            
+            <div className={`${cardBgClass} p-8 rounded-2xl shadow-lg border ${isDarkMode ? "border-gray-700" : "border-purple-200"}`}>
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center mb-4 shadow-lg">
+                <Lock className="w-6 h-6 text-white" />
+              </div>
+              <h3 className={`text-lg font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>Cryptographic Signatures</h3>
+              <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>DFP (Data Fingerprinting), SIT (Session Identity Token), STS (Secure Trust Signature)</p>
+            </div>
+
+            <div className={`${cardBgClass} p-8 rounded-2xl shadow-lg border ${isDarkMode ? "border-gray-700" : "border-pink-200"}`}>
+              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-600 rounded-lg flex items-center justify-center mb-4 shadow-lg">
+                <AlertTriangle className="w-6 h-6 text-white" />
+              </div>
+              <h3 className={`text-lg font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>9-Step Verification</h3>
+              <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>Comprehensive access pipeline with device, session, and role validation</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Services Section - Enhanced */}
       <section id="services" className={`py-20 px-6 ${bgClass}`}>
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16 animate-fade-in">
-            <h2 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>Comprehensive Security Solutions</h2>
+            <h2 className={`text-4xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}>Core Security Features</h2>
             <p className={`text-lg ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-              Everything you need to share files securely and stay compliant
+              Everything you need to share files securely with advanced protection
             </p>
           </div>
           

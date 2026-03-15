@@ -522,7 +522,7 @@ const Auth: React.FC = () => {
         if (isSuperAdminClaim2) {
           try {
             if (!profile || !isSuperAdminRole(profile.role)) {
-              await setDoc(doc(firestore, "users", user.uid), { role: "super_admin" }, { merge: true });
+              await setDoc(doc(firestore, "users", user.uid), { role: "super_admin", status: "active" }, { merge: true });
             }
           } catch (err) {
             console.warn("Could not sync superadmin role to Firestore (google):", err);
@@ -534,7 +534,7 @@ const Auth: React.FC = () => {
         if (isAdminClaim2) {
           try {
             if (!profile || profile.role !== "admin") {
-              await setDoc(doc(firestore, "users", user.uid), { role: "admin" }, { merge: true });
+              await setDoc(doc(firestore, "users", user.uid), { role: "admin", status: "active" }, { merge: true });
             }
           } catch (err) {
             console.warn("Could not sync admin role to Firestore (google):", err);

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Upload, Shield, Share2, CheckCircle } from 'lucide-react';
+import { Upload, Shield, Share2, CheckCircle, Download, FileText, Calendar, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -15,10 +17,40 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import policiesJson from '@/data/policies.json';
 import { auth, firestore } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot, orderBy, addDoc, doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDeviceIdentity } from '@/hooks/useDeviceIdentity';
+import {
+  generateDataFingerprint,
+  generateSessionIdentityToken,
+  generateSecureTrustSignature,
+  verifyFileAccessMiddleware,
+  logAccessEvent,
+} from '@/lib/scda';
+
+interface SharedData {
+  id: string;
+  fileName: string;
+  sharedWith: Array<{ userId: string; email: string; name: string }>;
+  sharedAt: any;
+  policy?: string;
+  status: string;
+}
+
+interface ReceivedData {
+  id: string;
+  fileName: string;
+  sharedBy: string;
+  sharedByEmail: string;
+  receivedAt: any;
+  status: string;
+}
 
 const Share = () => {
+  const { currentUser } = useAuth();
+  const { deviceId, ipAddress } = useDeviceIdentity();
+  const [activeTab, setActiveTab] = useState('share');
   const [file, setFile] = useState<File | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [shared, setShared] = useState(false);
@@ -32,6 +64,133 @@ const Share = () => {
   const [clients, setClients] = useState<any[]>([]);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedClients, setSelectedClients] = useState<any[]>([]);
+
+  // New state for shared and received data
+  const [sharedData, setSharedData] = useState<SharedData[]>([]);
+  const [receivedData, setReceivedData] = useState<ReceivedData[]>([]);
+  const [loadingShared, setLoadingShared] = useState(false);
+  const [loadingReceived, setLoadingReceived] = useState(false);
+
+  const loadSharedData = async () => {
+    if (!currentUser) return;
+    setLoadingShared(true);
+    try {
+      const unsubscribe = onSnapshot(
+        query(
+          collection(firestore, 'sharedData'),
+          where('uploadedBy', '==', currentUser.uid),
+          orderBy('timestamp', 'desc')
+        ),
+        (snapshot) => {
+          console.log('Recently Shared query result:', snapshot.docs.length, 'documents');
+          const data: SharedData[] = [];
+          snapshot.forEach((doc) => {
+            const d = doc.data() as any;
+            console.log('Shared data item:', d.fileName, 'uploadedBy:', d.uploadedBy, 'timestamp:', d.timestamp);
+            data.push({
+              id: doc.id,
+              fileName: d.fileName || d.name || 'Untitled',
+              sharedWith: d.sharedWith || [],
+              sharedAt: d.timestamp,
+              policy: d.policy,
+              status: d.status || 'active',
+            });
+          });
+          setSharedData(data);
+          setLoadingShared(false);
+        },
+        (error) => {
+          console.error('Error loading shared data:', error);
+          setLoadingShared(false);
+        }
+      );
+
+      return unsubscribe;
+    } catch (e) {
+      console.error('Error setting up shared data listener:', e);
+      setLoadingShared(false);
+    }
+  };
+
+  const loadReceivedData = async () => {
+    if (!currentUser) return;
+    setLoadingReceived(true);
+    try {
+      const unsubscribe = onSnapshot(
+        query(
+          collection(firestore, 'sharedData'),
+          where('sharedWithUserIds', 'array-contains', currentUser.uid),
+          orderBy('timestamp', 'desc')
+        ),
+        (snapshot) => {
+          console.log('Received data query result:', snapshot.docs.length, 'documents');
+          const data: ReceivedData[] = [];
+          snapshot.forEach((doc) => {
+            const d = doc.data() as any;
+            data.push({
+              id: doc.id,
+              fileName: d.fileName || d.name || 'Untitled',
+              sharedBy: d.uploadedByName || 'Unknown',
+              sharedByEmail: d.uploadedByEmail || '',
+              receivedAt: d.timestamp,
+              status: d.status || 'active',
+            });
+          });
+          setReceivedData(data);
+          setLoadingReceived(false);
+        },
+        (error) => {
+          console.error('Error loading received data:', error);
+          setLoadingReceived(false);
+        }
+      );
+
+      return unsubscribe;
+    } catch (e) {
+      console.error('Error setting up received data listener:', e);
+      setLoadingReceived(false);
+    }
+  };
+
+  const handleOpenFile = async (fileId: string, fileName: string) => {
+    if (!currentUser) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    try {
+      // Verify access using SCDA middleware
+      const sessionToken = await currentUser.getIdToken();
+
+      const accessResult = await verifyFileAccessMiddleware(
+        currentUser.uid,
+        fileId,
+        sessionToken,
+        deviceId || 'unknown',
+        ipAddress || 'unknown'
+      );
+
+      if (!accessResult.allowed) {
+        toast.error(accessResult.reason || 'Access denied');
+        return;
+      }
+
+      // Inform user of access level
+      if (accessResult.accessLevel === 'read-only') {
+        toast.info('This file is in read-only mode');
+      } else if (accessResult.accessLevel === 'preview') {
+        toast.info('This file is in preview mode only. Editing not allowed.');
+      }
+
+      toast.success(`Opening ${fileName}`);
+      // In a real implementation, this would open the file or trigger a download
+      // For now, just log the successful access
+      console.log(`File opened with access level: ${accessResult.accessLevel}`);
+    } catch (error) {
+      console.error('Error verifying file access:', error);
+      toast.error('Error opening file. Please try again.');
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -55,12 +214,147 @@ const Share = () => {
       return;
     }
 
-    // perform simulated share
+    if (!currentUser) {
+      toast.error('User not authenticated');
+      return;
+    }
+
     setIsSharing(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setIsSharing(false);
-    setShared(true);
-    toast.success(`Data shared securely to ${selectedClients.length} client(s)`);
+    try {
+      // Get user profile for role information
+      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+      if (!userDoc.exists()) {
+        toast.error('User profile not found');
+        setIsSharing(false);
+        return;
+      }
+      const userProfile = userDoc.data() as any;
+      const userRole = userProfile.role || 'admin';
+
+      // Generate SCDA security signatures
+      const dfp = generateDataFingerprint(
+        file.size,
+        file.type || 'application/octet-stream',
+        currentUser.uid,
+        Date.now()
+      );
+
+      const sit = generateSessionIdentityToken(
+        currentUser.uid,
+        deviceId || 'unknown',
+        currentUser.email,
+        24 * 60 * 60 * 1000 // 24 hour expiry
+      );
+
+      const roleLevel = 
+        userRole === 'super_super_admin' ? 4 :
+        userRole === 'super_admin' ? 3 :
+        userRole === 'admin' ? 2 : 1;
+
+      const sts = generateSecureTrustSignature(
+        roleLevel,
+        userProfile.industryId || 'general',
+        currentUser.uid,
+        dfp.hash,
+        sit.hash
+      );
+
+      // Prepare shared data document
+      const sharedWithData = selectedClients.map((c) => ({
+        userId: c.uid,
+        email: c.email,
+        name: `${c.firstName} ${c.lastName}`,
+        addedAt: new Date(),
+      }));
+
+      // Save file metadata to Firestore with SCDA protection
+      const fileMetadata = {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type || 'application/octet-stream',
+        ownerId: currentUser.uid,
+        ownerRole: userRole,
+        uploadedBy: currentUser.uid,
+        uploadedByName: userProfile.firstName || 'Unknown',
+        uploadedByEmail: currentUser.email,
+        uploadTimestamp: Date.now(),
+        timestamp: serverTimestamp(),
+        policy: policy.id || policy.policyName,
+        status: 'active',
+        sharedWith: sharedWithData,
+        sharedWithUserIds: selectedClientIds, // For easy array-contains queries
+        industryId: userProfile.industryId || 'general',
+        organizationId: userProfile.organizationId || 'default',
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+
+        // SCDA fields
+        dataFingerprint: {
+          hash: dfp.hash,
+          uploadTimestamp: dfp.uploadTimestamp,
+          nonce: dfp.nonce,
+        },
+        sessionIdentityToken: {
+          hash: sit.hash,
+          expiresAt: sit.expiresAt,
+        },
+        secureTrustSignature: {
+          signature: sts.signature,
+        },
+        accessLog: [
+          {
+            timestamp: Date.now(),
+            userId: currentUser.uid,
+            userEmail: currentUser.email,
+            userRole,
+            action: 'file_uploaded',
+            ipAddress: ipAddress || 'unknown',
+            deviceId: deviceId || 'unknown',
+          },
+        ],
+      };
+
+      // Add to Firestore
+      const fileRef = collection(firestore, 'sharedData');
+      const docRef = await addDoc(fileRef, fileMetadata);
+
+      // Add the fileId to the document
+      await updateDoc(doc(firestore, 'sharedData', docRef.id), {
+        fileId: docRef.id,
+      });
+
+      // Log the access event
+      await logAccessEvent({
+        timestamp: Date.now(),
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
+        userRole,
+        fileId: docRef.id,
+        fileName: file.name,
+        action: 'file_shared',
+        reason: 'File shared with SCDA protection',
+        accessLevel: 'full',
+        ipAddress: ipAddress || 'unknown',
+        deviceId: deviceId || 'unknown',
+      });
+
+      setShared(true);
+      setFile(null);
+      setSelectedClients([]);
+      setSelectedClientIds([]);
+      setPolicy(null);
+
+      toast.success(`Data shared securely to ${selectedClients.length} client(s) with SCDA protection`);
+
+      // Reload shared data
+      setTimeout(() => {
+        loadSharedData();
+      }, 500);
+    } catch (error) {
+      console.error('Error sharing file:', error);
+      toast.error('Failed to share file. Please try again.');
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const loadPolicies = () => {
@@ -77,6 +371,84 @@ const Share = () => {
     // fallback to static JSON
     setAvailablePolicies((policiesJson as any) || []);
   };
+
+  useEffect(() => {
+    loadPolicies();
+    // Setup real-time listeners on mount
+    if (currentUser) {
+      // Set up listeners for shared data (without orderBy to avoid needing composite index)
+      const unsubscribeShared = onSnapshot(
+        query(
+          collection(firestore, 'sharedData'),
+          where('uploadedBy', '==', currentUser.uid)
+        ),
+        (snapshot) => {
+          console.log('Recently Shared - Real-time update:', snapshot.docs.length, 'documents');
+          const data: SharedData[] = [];
+          snapshot.forEach((doc) => {
+            const d = doc.data() as any;
+            data.push({
+              id: doc.id,
+              fileName: d.fileName || d.name || 'Untitled',
+              sharedWith: d.sharedWith || [],
+              sharedAt: d.timestamp,
+              policy: d.policy,
+              status: d.status || 'active',
+            });
+          });
+          // Sort client-side by timestamp descending
+          data.sort((a, b) => {
+            const aTime = a.sharedAt?.toMillis?.() ?? new Date(a.sharedAt).getTime() ?? 0;
+            const bTime = b.sharedAt?.toMillis?.() ?? new Date(b.sharedAt).getTime() ?? 0;
+            return bTime - aTime;
+          });
+          setSharedData(data);
+        },
+        (error) => {
+          console.error('Error listening to shared data:', error);
+        }
+      );
+
+      // Set up listeners for received data (without orderBy to avoid needing composite index)
+      const unsubscribeReceived = onSnapshot(
+        query(
+          collection(firestore, 'sharedData'),
+          where('sharedWithUserIds', 'array-contains', currentUser.uid)
+        ),
+        (snapshot) => {
+          console.log('Received data - Real-time update:', snapshot.docs.length, 'documents');
+          const data: ReceivedData[] = [];
+          snapshot.forEach((doc) => {
+            const d = doc.data() as any;
+            data.push({
+              id: doc.id,
+              fileName: d.fileName || d.name || 'Untitled',
+              sharedBy: d.uploadedByName || 'Unknown',
+              sharedByEmail: d.uploadedByEmail || '',
+              receivedAt: d.timestamp,
+              status: d.status || 'active',
+            });
+          });
+          // Sort client-side by timestamp descending
+          data.sort((a, b) => {
+            const aTime = a.receivedAt?.toMillis?.() ?? new Date(a.receivedAt).getTime() ?? 0;
+            const bTime = b.receivedAt?.toMillis?.() ?? new Date(b.receivedAt).getTime() ?? 0;
+            return bTime - aTime;
+          });
+          setReceivedData(data);
+        },
+        (error) => {
+          console.error('Error listening to received data:', error);
+        }
+      );
+
+      // Clean up listeners on unmount
+      return () => {
+        unsubscribeShared();
+        unsubscribeReceived();
+      };
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -99,10 +471,6 @@ const Share = () => {
       fetchClients();
     }
   }, [isClientDialogOpen]);
-
-  useEffect(() => {
-    loadPolicies();
-  }, []);
 
   const toggleClientSelection = (uid: string) => {
     setSelectedClientIds((prev) => {
@@ -132,12 +500,20 @@ const Share = () => {
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle>Upload File</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="share">Share</TabsTrigger>
+            <TabsTrigger value="shared">Recently Shared</TabsTrigger>
+            <TabsTrigger value="received">Received</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="share" className="space-y-6 mt-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle>Upload File</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors">
                   <input
@@ -381,8 +757,140 @@ const Share = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
-        {/* Client selection dialog for sharing */}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="shared" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Recently Shared Data</CardTitle>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => loadSharedData()}
+                  disabled={loadingShared}
+                >
+                  Refresh
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {loadingShared ? (
+                  <div className="flex justify-center py-8">
+                    <p className="text-muted-foreground">Loading shared data...</p>
+                  </div>
+                ) : sharedData.length === 0 ? (
+                  <div className="flex justify-center py-8">
+                    <p className="text-muted-foreground">No shared data yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {sharedData.map((item) => {
+                      const sharedDate = item.sharedAt?.toDate ? item.sharedAt.toDate() : new Date(item.sharedAt);
+                      return (
+                        <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
+                          <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-medium truncate">{item.fileName}</p>
+                                <Badge className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-xs flex-shrink-0 flex items-center gap-1">
+                                  <Lock className="h-3 w-3" />
+                                  SCDA Protected
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                <Calendar className="h-3 w-3" />
+                                {sharedDate.toLocaleDateString()} {sharedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                              {item.sharedWith.length > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Shared with {item.sharedWith.length} recipient{item.sharedWith.length !== 1 ? 's' : ''}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleOpenFile(item.id, item.fileName)}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Open
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="received" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Received Data</CardTitle>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => loadReceivedData()}
+                  disabled={loadingReceived}
+                >
+                  Refresh
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {loadingReceived ? (
+                  <div className="flex justify-center py-8">
+                    <p className="text-muted-foreground">Loading received data...</p>
+                  </div>
+                ) : receivedData.length === 0 ? (
+                  <div className="flex justify-center py-8">
+                    <p className="text-muted-foreground">No data received yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {receivedData.map((item) => {
+                      const receivedDate = item.receivedAt?.toDate ? item.receivedAt.toDate() : new Date(item.receivedAt);
+                      return (
+                        <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
+                          <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-medium truncate">{item.fileName}</p>
+                                <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs flex-shrink-0 flex items-center gap-1">
+                                  <Lock className="h-3 w-3" />
+                                  SCDA Verified
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                From: <span className="font-medium">{item.sharedBy}</span> ({item.sharedByEmail})
+                              </p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                <Calendar className="h-3 w-3" />
+                                {receivedDate.toLocaleDateString()} {receivedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleOpenFile(item.id, item.fileName)}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Open
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+        
         <Dialog open={isClientDialogOpen} onOpenChange={setIsClientDialogOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>

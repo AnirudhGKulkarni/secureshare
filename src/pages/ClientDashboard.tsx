@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { LogOut, Settings, User, Activity, FileText, Shield, MessageSquare, Clock, Bell, Lock, ArrowUp, Upload, ChevronRight } from "lucide-react";
+import { LogOut, Settings, User, Activity, FileText, Shield, MessageSquare, Clock, Bell, Lock, ArrowUp, Upload, ChevronRight, CheckCircle } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 
 type SensitivityBucket = "public" | "internal" | "confidential";
@@ -160,6 +160,7 @@ const ClientDashboard: React.FC = () => {
   const [fileSensitivityData, setFileSensitivityData] = useState<FileSensitivityChartDatum[]>(() => buildEmptySensitivityData());
   const [loginActivityData, setLoginActivityData] = useState<LoginActivityDatum[]>(() => buildLastSevenDayBuckets());
   const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
+  const [recentlyReceived, setRecentlyReceived] = useState<any[]>([]);
   const activityScrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -375,6 +376,45 @@ const ClientDashboard: React.FC = () => {
       console.error('Error fetching recent activity:', error);
       setRecentActivity([]);
     });
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Load recently received files
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubscribe = onSnapshot(
+      query(
+        collection(firestore, 'sharedData'),
+        where('sharedWithUserIds', 'array-contains', currentUser.uid)
+      ),
+      (snapshot) => {
+        const data: any[] = [];
+        snapshot.forEach((doc) => {
+          const d = doc.data();
+          data.push({
+            id: doc.id,
+            fileName: d.fileName || 'Untitled',
+            uploadedByName: d.uploadedByName || 'Unknown',
+            uploadedByEmail: d.uploadedByEmail || '',
+            timestamp: d.timestamp,
+            status: d.status || 'active',
+          });
+        });
+        // Sort by timestamp descending
+        data.sort((a, b) => {
+          const aTime = a.timestamp?.toMillis?.() ?? new Date(a.timestamp).getTime() ?? 0;
+          const bTime = b.timestamp?.toMillis?.() ?? new Date(b.timestamp).getTime() ?? 0;
+          return bTime - aTime;
+        });
+        setRecentlyReceived(data.slice(0, 5));
+      },
+      (error) => {
+        console.error('Error loading recently received:', error);
+        setRecentlyReceived([]);
+      }
+    );
 
     return () => unsubscribe();
   }, [currentUser]);
@@ -601,6 +641,61 @@ const ClientDashboard: React.FC = () => {
                   </div>
                 </div>
 
+                {/* SCDA Protection Status */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg border-0" style={{
+                  background: 'linear-gradient(135deg, #0d5a5f 0%, #0a7c87 100%)'
+                }}>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      SCDA File Protection
+                    </h3>
+                    <ul className="space-y-2 text-sm text-white/80">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        Secure Contextual Data Authorization
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        Role-based Access Control (4-tier)
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        Cryptographic Signatures (SHA-256)
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        Device & Session Validation
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      Advanced Security Features
+                    </h3>
+                    <ul className="space-y-2 text-sm text-white/80">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        Data Fingerprinting (DFP)
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        Session Identity Token (SIT)
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        Secure Trust Signature (STS)
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        Brute-Force & Anomaly Protection
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
                 {/* Charts Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Sensitivity Pie Chart */}
@@ -666,6 +761,39 @@ const ClientDashboard: React.FC = () => {
                       )}
                     </div>
                   </div>
+                </div>
+
+                {/* Recently Received Files */}
+                <div className="p-4 rounded-lg border border-border bg-card">
+                  <div className="text-sm font-semibold mb-4 text-foreground flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Recently Received
+                  </div>
+                  {recentlyReceived.length === 0 ? (
+                    <p className="text-sm text-foreground/60">No files received yet</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {recentlyReceived.map((item) => (
+                        <div key={item.id} className="p-3 rounded-lg border border-border/50 bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                          <div className="flex items-start gap-3">
+                            <FileText className="h-4 w-4 mt-1 text-blue-500 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{item.fileName}</p>
+                              <p className="text-xs text-foreground/60">
+                                From: {item.uploadedByName || item.uploadedByEmail}
+                              </p>
+                              <p className="text-xs text-foreground/50 mt-1">
+                                {getRelativeTime(item.timestamp)}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-xs flex-shrink-0 bg-green-950/20">
+                              {item.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3 pt-4">

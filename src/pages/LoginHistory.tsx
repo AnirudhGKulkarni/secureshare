@@ -144,15 +144,19 @@ const LoginHistory = () => {
         riskLevel: d.riskLevel || 'low',
         // normalize potential failure/reason fields so we can detect incorrect-password failures
         failureReason: d.failureReason || d.reason || d.errorCode || d.errorMessage || d.error || null,
+        userRole: u.role || 'unknown',
       };
     });
 
-    setLoginHistory(mapped);
+    // Filter out super_admin role from login history display
+    const filteredMapped = mapped.filter((entry: any) => entry.userRole !== 'super_admin');
 
-    // compute basic stats
-    const total = mapped.length;
+    setLoginHistory(filteredMapped);
+
+    // compute basic stats (using filtered data without super_admin)
+    const total = filteredMapped.length;
     const today = new Date();
-    const totalToday = mapped.filter((m) => {
+    const totalToday = filteredMapped.filter((m) => {
       try { return m.timestampDate && m.timestampDate.toDateString() === today.toDateString(); } catch { return false; }
     }).length;
     // Count failed attempts only when failure indicates an incorrect password
@@ -166,8 +170,8 @@ const LoginHistory = () => {
       return false;
     };
 
-    const failed = mapped.filter(m => m.status === 'failed' && isIncorrectPasswordFailure(m)).length;
-    const blocked = mapped.filter(m => m.status === 'blocked').length;
+    const failed = filteredMapped.filter(m => m.status === 'failed' && isIncorrectPasswordFailure(m)).length;
+    const blocked = filteredMapped.filter(m => m.status === 'blocked').length;
     const success = total - failed - blocked;
     const successRate = total ? Math.round((success / total) * 1000) / 10 : 0;
 

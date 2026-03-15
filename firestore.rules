@@ -36,14 +36,12 @@ service cloud.firestore {
       // Listing all users should be restricted to admins.
       allow list: if isAdminOrSuperAdmin();
 
-      // Users may create ONLY their own profile, and cannot self-approve or self-assign privileged roles.
+      // Admins and super admins can create any user profile
+      // Regular users can only create their own profile with default permissions
       allow create: if isSignedIn() && (
-        (
-          request.auth.uid == userId
-          && (!('approved' in request.resource.data) || request.resource.data.approved == false)
-          && (!('role' in request.resource.data) || request.resource.data.role == 'client')
-        )
-        || isAdminOrSuperAdmin()
+        isSuperAdmin()
+        || (isAdmin() && !('role' in request.resource.data && request.resource.data.role == 'super_admin'))
+        || (request.auth.uid == userId && (!('approved' in request.resource.data) || request.resource.data.approved == false) && (!('role' in request.resource.data) || request.resource.data.role == 'client'))
       );
 
       allow update: if isSignedIn() && (
@@ -148,10 +146,11 @@ service cloud.firestore {
 
     // --- Super Admin Shared Data (metadata) ---
     match /sharedData/{docId} {
-      // Super admin uploads/shares; recipients can read metadata for download.
-      allow create, update, delete: if isSuperAdmin();
+      // Admins and super admins can share files; recipients can read metadata for download.
+      allow create, update, delete: if isAdminOrSuperAdmin();
       allow read: if isSignedIn() && (
-        isSuperAdmin() ||
+        isAdminOrSuperAdmin() ||
+        (resource.data.sharedWithUserIds is list && request.auth.uid in resource.data.sharedWithUserIds) ||
         (resource.data.sharedWith is list && request.auth.uid in resource.data.sharedWith)
       );
     }
@@ -297,6 +296,23 @@ match /messages/{messageId} {
       allow create: if request.auth != null &&
         request.resource.data.uid == request.auth.uid;
       allow update, delete: if isSuperAdmin();
+    }
+
+    // --- SCDA Access Logs (Audit Trail) ---
+    match /scda_access_logs/{logId} {
+      // Anyone can append access logs when performing file operations
+      allow create: if isSignedIn();
+      // Only admins and super admins can read logs
+      allow read, list: if isAdminOrSuperAdmin();
+      // No updates to logs (immutable audit trail)
+      allow update, delete: if false;
+    }
+
+    // --- System Config ---
+    match /system_config/{docId} {
+      // Admins and super admins can manage config
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
     }
 
     // --- Fallback deny ---

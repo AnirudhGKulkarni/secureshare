@@ -185,15 +185,6 @@ const EnhancedAuditLogs = () => {
     });
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'bg-purple-100 text-purple-700 border-purple-300';
-      case 'admin': return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'client': return 'bg-green-100 text-green-700 border-green-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'success': return 'bg-green-100 text-green-700 border-green-300';
@@ -343,9 +334,6 @@ const EnhancedAuditLogs = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="font-medium">{log.userName}</span>
-                          <Badge className={getRoleColor(log.userRole ?? '')}>
-                            {log.userRole ? log.userRole.replace(/_/g, ' ') : '—'}
-                          </Badge>
                           <Badge className={getStatusColor(log.status)}>
                             {log.status}
                           </Badge>

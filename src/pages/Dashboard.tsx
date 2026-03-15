@@ -2,11 +2,12 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 // avatar removed by user request
-import { Users, Shield, AlertTriangle, TrendingUp, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Shield, AlertTriangle, TrendingUp, Clock, AlertCircle, CheckCircle, XCircle, Lock, Eye, GitBranch, Share2, FileText } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { useEffect, useState } from 'react';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, getDocs, onSnapshot, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot, collectionGroup, orderBy } from 'firebase/firestore';
+import { useAuth } from '@/contexts/AuthContext';
 
 const chartData = [
   { name: 'Jan', before: 85, after: 12 },
@@ -42,6 +43,7 @@ const riskItems = [
 ];
 
 const Dashboard = () => {
+  const { currentUser } = useAuth();
   const [stats, setStats] = useState([
     { name: 'Total Users', value: '0', icon: Users, change: '+0%', trend: 'up' },
     { name: 'Active Policies', value: '0', icon: Shield, change: '+0%', trend: 'up' },
@@ -49,6 +51,7 @@ const Dashboard = () => {
     { name: 'Data Shared', value: '0 B', icon: TrendingUp, change: '+0%', trend: 'up' },
   ]);
   const [recentUsers, setRecentUsers] = useState<any[]>([]);
+  const [recentlyShared, setRecentlyShared] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -134,6 +137,44 @@ const Dashboard = () => {
     loadDashboardData();
   }, []);
 
+  // Load recently shared files
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubscribe = onSnapshot(
+      query(
+        collection(firestore, 'sharedData'),
+        where('uploadedBy', '==', currentUser.uid)
+      ),
+      (snapshot) => {
+        const data: any[] = [];
+        snapshot.forEach((doc) => {
+          const d = doc.data();
+          data.push({
+            id: doc.id,
+            fileName: d.fileName || 'Untitled',
+            uploadedByName: d.uploadedByName || 'Unknown',
+            timestamp: d.timestamp,
+            sharedWithCount: (d.sharedWith || []).length,
+            status: d.status || 'active',
+          });
+        });
+        // Sort by timestamp descending
+        data.sort((a, b) => {
+          const aTime = a.timestamp?.toMillis?.() ?? new Date(a.timestamp).getTime() ?? 0;
+          const bTime = b.timestamp?.toMillis?.() ?? new Date(b.timestamp).getTime() ?? 0;
+          return bTime - aTime;
+        });
+        setRecentlyShared(data.slice(0, 5));
+      },
+      (error) => {
+        console.error('Error loading recently shared:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -171,6 +212,48 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+
+            {/* SCDA Security Overview Section */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card className="shadow-card bg-gradient-to-br from-blue-900 to-blue-800 border-blue-700 text-white">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-blue-100">
+                    <Shield className="h-4 w-4" />
+                    SCDA Active Files
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">Protected</div>
+                  <p className="text-sm text-blue-200 mt-1">All shared files use SCDA signatures</p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-card bg-gradient-to-br from-purple-900 to-purple-800 border-purple-700 text-white">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-purple-100">
+                    <Lock className="h-4 w-4" />
+                    Cryptographic Signatures
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">SHA-256</div>
+                  <p className="text-sm text-purple-200 mt-1">Data Fingerprint & Session Tokens</p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-card bg-gradient-to-br from-teal-900 to-teal-800 border-teal-700 text-white">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-teal-100">
+                    <Eye className="h-4 w-4" />
+                    9-Step Verification
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">Active</div>
+                  <p className="text-sm text-teal-200 mt-1">Role, session & device validation</p>
+                </CardContent>
+              </Card>
             </div>
 
             <Card className="shadow-card">
@@ -237,7 +320,39 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Threats Pie Chart */}
+              {/* Recently Shared Files */}
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Share2 className="h-5 w-5" />
+                    Recently Shared
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recentlyShared.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No files shared yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentlyShared.map((item) => (
+                        <div key={item.id} className="p-2 rounded-lg border bg-card hover:bg-secondary/50 transition-colors">
+                          <div className="flex items-start gap-2">
+                            <FileText className="h-4 w-4 mt-0.5 text-blue-500 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{item.fileName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Shared with {item.sharedWithCount} recipient{item.sharedWithCount !== 1 ? 's' : ''}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-xs flex-shrink-0">
+                              {item.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
               <Card className="shadow-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
