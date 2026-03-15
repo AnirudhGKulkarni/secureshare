@@ -13,7 +13,7 @@ const DEFAULT_CONFIG: SCDAConfig = {
   enableDetailedLogging: true,
   requireDeviceVerification: true,
   maxAccessAttempts: 5,
-  lockoutDuration: 1 * 60 * 1000, // 15 minutes
+  lockoutDuration: 15 * 60 * 1000, // 15 minutes
 };
 
 /**
