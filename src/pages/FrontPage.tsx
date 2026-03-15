@@ -682,8 +682,8 @@ const FrontPage: React.FC = () => {
               <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center mb-4 shadow-lg">
                 <Shield className="w-6 h-6 text-white" />
               </div>
-              <h3 className={`text-lg font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>4-Tier Role Hierarchy</h3>
-              <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>SuperSuperAdmin, SuperAdmin, Admin, Client - with granular permission inheritance</p>
+              <h3 className={`text-lg font-bold mb-2 ${isDarkMode ? "text-white" : "text-gray-900"}`}>3-Tier Role Hierarchy</h3>
+              <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>SuperAdmin, Admin, Client - with granular permission inheritance</p>
             </div>
             
             <div className={`${cardBgClass} p-8 rounded-2xl shadow-lg border ${isDarkMode ? "border-gray-700" : "border-purple-200"}`}>
