@@ -293,6 +293,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const profileRef = doc(firestore, "users", cred.user.uid);
     const safeRole: "admin" | "client" | "super_admin" = (role === "admin" || role === "super_admin") ? "client" : role;
 
+    // Extract createdBy from URL parameter if present (for clients signed up via admin referral link)
+    const urlParams = new URLSearchParams(window.location.search);
+    const createdByAdminId = urlParams.get('admin') || urlParams.get('createdBy') || null;
+
     // First attempt a minimal, safe merge write (this is most likely allowed by strict rules)
     try {
       await setDoc(
@@ -302,6 +306,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: safeRole,
           status: "active",
           createdAt: serverTimestamp(),
+          ...(safeRole === 'client' && createdByAdminId ? { createdBy: createdByAdminId } : {}),
         },
         { merge: true }
       );
@@ -312,7 +317,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Then attempt to write the full profile for richer UX, but do not let failures block signup.
     try {
-      await setDoc(profileRef, {
+      const fullProfile: any = {
         firstName,
         lastName,
         email,
@@ -322,7 +327,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: safeRole,
         status: "active",
         createdAt: serverTimestamp(),
-      });
+        ...(safeRole === 'client' && createdByAdminId ? { createdBy: createdByAdminId } : {}),
+      };
+      await setDoc(profileRef, fullProfile, { merge: true });
     } catch (err) {
       console.warn("Full profile write failed during signup (non-blocking):", err);
       // Do not rethrow — many projects restrict writes to some fields; we've already written a minimal profile.

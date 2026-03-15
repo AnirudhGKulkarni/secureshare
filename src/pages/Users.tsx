@@ -37,6 +37,7 @@ interface User {
   plan?: string;
   createdAt?: any;
   tempPassword?: string | null;
+  createdBy?: string;
 }
 
 const roleOptions = [
@@ -56,8 +57,44 @@ const Users = () => {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUsers();
+    const initializeUsers = async () => {
+      await backfillCreatedByField();
+      await fetchUsers();
+    };
+    initializeUsers();
   }, []);
+
+  // Backfill createdBy for existing clients without this field
+  const backfillCreatedByField = async () => {
+    if (!auth.currentUser) return;
+    try {
+      const q = query(
+        collection(firestore, 'users'),
+        where('status', '==', 'active'),
+        where('role', '==', 'client')
+      );
+      const querySnapshot = await getDocs(q);
+      let updateCount = 0;
+
+      for (const d of querySnapshot.docs) {
+        const data = d.data() as any;
+        // If client doesn't have createdBy, assign to current admin
+        if (!data.createdBy && auth.currentUser) {
+          await updateDoc(doc(firestore, 'users', d.id), {
+            createdBy: auth.currentUser.uid,
+          });
+          updateCount++;
+        }
+      }
+
+      if (updateCount > 0) {
+        console.log(`✅ Backfilled createdBy for ${updateCount} clients`);
+      }
+    } catch (error) {
+      console.warn('Could not backfill createdBy field:', error);
+      // Non-blocking - continue loading users
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -77,6 +114,7 @@ const Users = () => {
           plan: data?.plan ?? '',
           createdAt: data?.createdAt ?? null,
           tempPassword: data?.tempPassword ?? null,
+          createdBy: data?.createdBy ?? undefined,
         });
       });
       setUsers(fetchedUsers);
@@ -130,6 +168,7 @@ const Users = () => {
             status: 'active',
             tempPassword: tempPass,
             createdAt: serverTimestamp(),
+            ...(formData.role === 'client' && auth.currentUser && { createdBy: auth.currentUser.uid }),
           };
 
           await setDoc(doc(firestore, 'users', uid), newUserDoc);

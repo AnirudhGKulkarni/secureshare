@@ -61,9 +61,11 @@ const Share = () => {
   const navigate = useNavigate();
 
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
-  const [clients, setClients] = useState<any[]>([]);
+  const [recipients, setRecipients] = useState<any[]>([]);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedClients, setSelectedClients] = useState<any[]>([]);
+  const [recipientType, setRecipientType] = useState<'admin' | 'client' | 'mixed'>('mixed');
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   // New state for shared and received data
   const [sharedData, setSharedData] = useState<SharedData[]>([]);
@@ -152,7 +154,7 @@ const Share = () => {
     }
   };
 
-  const handleOpenFile = async (fileId: string, fileName: string) => {
+  const handleDownloadFile = async (fileId: string, fileName: string) => {
     if (!currentUser) {
       toast.error('User not authenticated');
       return;
@@ -175,20 +177,56 @@ const Share = () => {
         return;
       }
 
-      // Inform user of access level
-      if (accessResult.accessLevel === 'read-only') {
-        toast.info('This file is in read-only mode');
-      } else if (accessResult.accessLevel === 'preview') {
-        toast.info('This file is in preview mode only. Editing not allowed.');
+      // Retrieve file document to get the fileData
+      const fileDocRef = doc(firestore, 'sharedData', fileId);
+      const fileDocSnap = await getDoc(fileDocRef);
+
+      if (!fileDocSnap.exists()) {
+        toast.error('File not found');
+        return;
       }
 
-      toast.success(`Opening ${fileName}`);
-      // In a real implementation, this would open the file or trigger a download
-      // For now, just log the successful access
-      console.log(`File opened with access level: ${accessResult.accessLevel}`);
+      const fileData = fileDocSnap.data() as any;
+      console.log('File document data:', fileData);
+      
+      const base64Data = fileData.fileData;
+
+      if (!base64Data) {
+        console.error('File data not available. Document data:', fileData);
+        toast.error(`This file needs to be re-shared to download. Old file format doesn't support direct downloads.`);
+        return;
+      }
+
+      // Convert base64 to blob and download
+      downloadBase64File(base64Data, fileName);
+      toast.success(`Downloading ${fileName}`);
+      console.log(`File download initiated: ${fileName}`);
     } catch (error) {
-      console.error('Error verifying file access:', error);
-      toast.error('Error opening file. Please try again.');
+      console.error('Error downloading file:', error);
+      toast.error('Error downloading file. Please try again.');
+    }
+  };
+
+  const downloadBase64File = (base64Data: string, fileName: string) => {
+    try {
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray]);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      throw error;
     }
   };
 
@@ -475,26 +513,120 @@ const Share = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    const fetchClients = async () => {
+    const fetchRecipients = async () => {
+      if (!currentUser) return;
+
       try {
-        const q = query(collection(firestore, 'users'), where('role', '==', 'client'), where('status', '==', 'active'));
-        const snapshot = await getDocs(q);
+        // Get current user profile
+        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+        if (!userDoc.exists()) {
+          toast.error('User profile not found');
+          return;
+        }
+
+        const userProfile = userDoc.data() as any;
+        const currentUserRole = userProfile.role || 'client';
+        setUserRole(currentUserRole);
+
         const fetched: any[] = [];
-        snapshot.forEach((d) => {
-          const data = d.data() as any;
-          fetched.push({ uid: data?.uid ?? d.id, firstName: data?.firstName ?? '', lastName: data?.lastName ?? '', email: data?.email ?? '' });
-        });
-        setClients(fetched);
+
+        // Super admin can share with all admins
+        if (currentUserRole === 'super_admin' || currentUserRole === 'super_super_admin') {
+          console.log('Fetching admins for super admin');
+          const q = query(
+            collection(firestore, 'users'),
+            where('role', '==', 'admin'),
+            where('status', '==', 'active')
+          );
+          const snapshot = await getDocs(q);
+          snapshot.forEach((d) => {
+            const data = d.data() as any;
+            fetched.push({
+              uid: data?.uid ?? d.id,
+              firstName: data?.firstName ?? '',
+              lastName: data?.lastName ?? '',
+              email: data?.email ?? '',
+              role: data?.role,
+            });
+          });
+          setRecipientType('admin');
+        }
+        // Admin can share with their created clients + all super admins
+        else if (currentUserRole === 'admin') {
+          console.log('Fetching clients and super admins for admin');
+          // Fetch clients created by this admin
+          const q1 = query(
+            collection(firestore, 'users'),
+            where('createdBy', '==', currentUser.uid),
+            where('status', '==', 'active')
+          );
+          const snapshot1 = await getDocs(q1);
+          snapshot1.forEach((d) => {
+            const data = d.data() as any;
+            fetched.push({
+              uid: data?.uid ?? d.id,
+              firstName: data?.firstName ?? '',
+              lastName: data?.lastName ?? '',
+              email: data?.email ?? '',
+              role: 'client',
+              relationshipLabel: '(Your Client)',
+            });
+          });
+
+          // Fetch all super admins
+          const q2 = query(
+            collection(firestore, 'users'),
+            where('role', 'in', ['super_admin', 'super_super_admin']),
+            where('status', '==', 'active')
+          );
+          const snapshot2 = await getDocs(q2);
+          snapshot2.forEach((d) => {
+            const data = d.data() as any;
+            fetched.push({
+              uid: data?.uid ?? d.id,
+              firstName: data?.firstName ?? '',
+              lastName: data?.lastName ?? '',
+              email: data?.email ?? '',
+              role: data?.role,
+              relationshipLabel: '(Super Admin)',
+            });
+          });
+          setRecipientType('mixed');
+        }
+        // Client can only share with the admin who created them
+        else if (currentUserRole === 'client') {
+          console.log('Fetching parent admin for client');
+          const createdBy = userProfile?.createdBy;
+
+          if (createdBy) {
+            const adminDoc = await getDoc(doc(firestore, 'users', createdBy));
+            if (adminDoc.exists()) {
+              const adminData = adminDoc.data() as any;
+              fetched.push({
+                uid: adminData?.uid ?? createdBy,
+                firstName: adminData?.firstName ?? '',
+                lastName: adminData?.lastName ?? '',
+                email: adminData?.email ?? '',
+                role: adminData?.role,
+                relationshipLabel: '(Your Admin)',
+              });
+            }
+          }
+          setRecipientType('admin');
+        }
+
+        setRecipients(fetched);
+        console.log('Fetched recipients:', fetched);
       } catch (e) {
-        console.error('Failed to fetch clients', e);
-        toast.error('Failed to load clients');
+        console.error('Failed to fetch recipients', e);
+        toast.error('Failed to load recipients');
       }
     };
 
     if (isClientDialogOpen) {
-      fetchClients();
+      fetchRecipients();
     }
-  }, [isClientDialogOpen]);
+  }, [isClientDialogOpen, currentUser]);
 
   const toggleClientSelection = (uid: string) => {
     setSelectedClientIds((prev) => {
@@ -505,10 +637,10 @@ const Share = () => {
 
   const confirmClientShare = async () => {
     if (selectedClientIds.length === 0) {
-      toast.error('Select one or more clients to share with');
+      toast.error('Select one or more recipients to share with');
       return;
     }
-    const chosen = clients.filter((c) => selectedClientIds.includes(c.uid));
+    const chosen = recipients.filter((c) => selectedClientIds.includes(c.uid));
     setSelectedClients(chosen);
     setIsClientDialogOpen(false);
     toast.success(`${chosen.length} recipient(s) selected`);
@@ -852,16 +984,8 @@ const Share = () => {
 
           <TabsContent value="received" className="space-y-6 mt-6">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <CardTitle>Received Data</CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => loadReceivedData()}
-                  disabled={loadingReceived}
-                >
-                  Refresh
-                </Button>
               </CardHeader>
               <CardContent>
                 {loadingReceived ? (
@@ -888,9 +1012,6 @@ const Share = () => {
                                   SCDA Verified
                                 </Badge>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                From: <span className="font-medium">{item.sharedBy}</span> ({item.sharedByEmail})
-                              </p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                 <Calendar className="h-3 w-3" />
                                 {receivedDate.toLocaleDateString()} {receivedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -900,10 +1021,11 @@ const Share = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleOpenFile(item.id, item.fileName)}
+                            onClick={() => handleDownloadFile(item.id, item.fileName)}
+                            className="gap-2"
                           >
-                            <Download className="h-4 w-4 mr-2" />
-                            Open
+                            <Download className="h-4 w-4" />
+                            Download
                           </Button>
                         </div>
                       );
@@ -918,16 +1040,22 @@ const Share = () => {
         <Dialog open={isClientDialogOpen} onOpenChange={setIsClientDialogOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>Select Client(s) to Share With</DialogTitle>
+              <DialogTitle>
+                {recipientType === 'admin' ? 'Select Admin(s) to Share With' : 'Select Recipient(s) to Share With'}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-2">
               <div className="max-h-64 overflow-y-auto space-y-2">
-                {clients.length === 0 && <div className="text-sm text-muted-foreground">No clients found</div>}
-                {clients.map((c) => (
+                {recipients.length === 0 && <div className="text-sm text-muted-foreground">No recipients found</div>}
+                {recipients.map((c) => (
                   <label key={c.uid} className="flex items-center justify-between p-2 border rounded">
                     <div>
-                      <div className="font-medium">{c.firstName} {c.lastName}</div>
+                      <div className="font-medium">
+                        {c.firstName} {c.lastName}
+                        {c.relationshipLabel && <span className="text-xs text-muted-foreground ml-2">{c.relationshipLabel}</span>}
+                      </div>
                       <div className="text-xs text-muted-foreground">{c.email}</div>
+                      {c.role && <div className="text-xs text-muted-foreground capitalize">Role: {c.role}</div>}
                     </div>
                     <div>
                       <Checkbox checked={selectedClientIds.includes(c.uid)} onCheckedChange={() => toggleClientSelection(c.uid)} />
@@ -939,7 +1067,7 @@ const Share = () => {
                 <Button variant="outline" onClick={() => { setIsClientDialogOpen(false); setSelectedClientIds([]); }}>
                   Cancel
                 </Button>
-                <Button onClick={confirmClientShare} disabled={isSharing}>
+                <Button onClick={confirmClientShare} disabled={isSharing || recipients.length === 0} style={{ backgroundColor: '#113738' }} className="text-white hover:opacity-90">
                   {isSharing ? 'Sharing...' : 'Share to Selected'}
                 </Button>
               </div>

@@ -1,7 +1,7 @@
 // src/lib/firebase.ts
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 export const firebaseConfig = {
@@ -37,25 +37,7 @@ export const auth = getAuth(app);
 export const firestore = getFirestore(app);
 export const storage = getStorage(app);
 
-// Enable IndexedDB persistence (try once; guard against HMR / multiple-initializations)
-if (typeof window !== "undefined") {
-  try {
-    const g = window as any;
-    if (!g.__FIRESTORE_PERSISTENCE_TRIED__) {
-      g.__FIRESTORE_PERSISTENCE_TRIED__ = true;
-      enableIndexedDbPersistence(firestore).catch((err) => {
-        const msg = String(err?.message ?? err?.code ?? err);
-        // Ignore expected failures: multiple tabs, unimplemented, or already-started
-        if (/failed-precondition|unimplemented|already been started/i.test(msg)) {
-          console.warn("Could not enable persistence (non-fatal):", msg);
-        } else {
-          console.warn("Could not enable persistence:", err);
-        }
-      });
-    }
-  } catch (e) {
-    console.warn("Could not initialize persistence guard:", e);
-  }
-}
+// Firestore persistence is now managed via FirestoreSettings.cache in the getFirestore call
+// This provides better handling of IndexedDB persistence across multiple tabs and HMR scenarios
 
 export default app;

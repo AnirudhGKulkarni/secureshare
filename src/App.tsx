@@ -190,7 +190,7 @@ const App = () => {
           <Toaster />
           <Sonner />
 
-          <BrowserRouter>
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <ScrollToTop />
             {/* ErrorBoundary wraps routes so rendering errors show a helpful message instead of a white page */}
             <ErrorBoundary>

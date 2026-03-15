@@ -30,9 +30,22 @@ service cloud.firestore {
       return isAdmin() || isSuperAdmin();
     }
 
+    function isClientReadingCreator() {
+      // Client can read admin's document if admin created them
+      // Simple: currentUser.createdBy == adminId
+      let currentUserRef = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isSignedIn() 
+        && exists(currentUserRef)
+        && get(currentUserRef).data.createdBy == userId;
+    }
+
     // --- Users ---
     match /users/{userId} {
-      allow read: if isSignedIn() && (userId == getUserId() || isAdminOrSuperAdmin());
+      allow read: if isSignedIn() && (
+        userId == request.auth.uid           // User reading their own doc
+        || isAdminOrSuperAdmin()             // Admins reading any user
+        || isClientReadingCreator()          // Client reading their admin
+      );
       // Listing all users should be restricted to admins.
       allow list: if isAdminOrSuperAdmin();
 
@@ -146,13 +159,24 @@ service cloud.firestore {
 
     // --- Super Admin Shared Data (metadata) ---
     match /sharedData/{docId} {
-      // Admins can create shared data
-      allow create: if isAdminOrSuperAdmin()
+      // Both admins and clients can create shared data
+      // - Admins can share with anyone
+      // - Clients can only share with their admin
+      allow create: if isSignedIn()
         && request.resource.data.uploadedBy == request.auth.uid
-        && request.resource.data.sharedWithUserIds is list;
+        && request.resource.data.sharedWithUserIds is list
+        && (
+          isAdminOrSuperAdmin()  // Admins can share with anyone
+          || (
+            // Clients can only share with their admin (createdBy)
+            !isAdminOrSuperAdmin()
+            && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.createdBy in request.resource.data.sharedWithUserIds
+          )
+        );
       
-      // Admins can update/delete their own shared data  
-      allow update, delete: if isAdminOrSuperAdmin()
+      // Users can update/delete their own shared data  
+      allow update, delete: if isSignedIn()
         && resource.data.uploadedBy == request.auth.uid;
       
       // Get individual document (for direct document access)

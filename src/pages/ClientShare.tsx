@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import policiesJson from '@/data/policies.json';
@@ -62,7 +63,7 @@ const ClientShare: React.FC = () => {
   const navigate = useNavigate();
 
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
-  const [clients, setClients] = useState<any[]>([]);
+  const [recipients, setRecipients] = useState<any[]>([]);
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedClients, setSelectedClients] = useState<any[]>([]);
 
@@ -464,6 +465,17 @@ const ClientShare: React.FC = () => {
           const data: ReceivedData[] = [];
           snapshot.forEach((doc) => {
             const d = doc.data() as any;
+            // Important: Filter out files where uploader is super_admin sharing to themselves
+            // Only include if file is explicitly meant for current user (not a side-effect of super admin access)
+            const uploadedByRole = d.ownerRole || d.role || 'unknown';
+            if (uploadedByRole === 'super_admin' || uploadedByRole === 'super_super_admin') {
+              // Super admin files: only show if explicitly in sharedWith array
+              const isExplicitlyShared = d.sharedWith?.some((s: any) => s.userId === currentUser.uid);
+              if (!isExplicitlyShared) {
+                console.debug('Filtering super admin file not explicitly shared:', d.fileName);
+                return; // Skip this file
+              }
+            }
             data.push({
               id: doc.id,
               fileName: d.fileName || d.name || 'Untitled',
@@ -504,26 +516,89 @@ const ClientShare: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    const fetchClients = async () => {
+    const fetchRecipients = async () => {
+      if (!currentUser) return;
+
       try {
-        const q = query(collection(firestore, 'users'), where('role', '==', 'client'), where('status', '==', 'active'));
-        const snapshot = await getDocs(q);
+        // Get current user profile
+        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+        if (!userDoc.exists()) {
+          toast.error('User profile not found');
+          return;
+        }
+
+        const userProfile = userDoc.data() as any;
+        const createdBy = userProfile?.createdBy;
         const fetched: any[] = [];
-        snapshot.forEach((d) => {
-          const data = d.data() as any;
-          fetched.push({ uid: data?.uid ?? d.id, firstName: data?.firstName ?? '', lastName: data?.lastName ?? '', email: data?.email ?? '' });
-        });
-        setClients(fetched);
-      } catch (e) {
-        console.error('Failed to fetch clients', e);
-        toast.error('Failed to load clients');
+
+        // Clients can only share with the admin who created them
+        if (createdBy) {
+          try {
+            // Try to fetch admin's full profile
+            const adminDoc = await getDoc(doc(firestore, 'users', createdBy));
+            if (adminDoc.exists()) {
+              const adminData = adminDoc.data() as any;
+              fetched.push({
+                uid: adminData?.uid ?? createdBy,
+                firstName: adminData?.firstName ?? '',
+                lastName: adminData?.lastName ?? '',
+                email: adminData?.email ?? '',
+                role: adminData?.role,
+                relationshipLabel: '(Your Admin)',
+              });
+            } else {
+              // Admin doc doesn't exist - use fallback with just UID
+              console.warn('Admin document not found, using fallback');
+              fetched.push({
+                uid: createdBy,
+                firstName: 'Your',
+                lastName: 'Admin',
+                email: 'admin@trustnshare.com',
+                role: 'admin',
+                relationshipLabel: '(Your Admin - Profile pending)',
+              });
+            }
+          } catch (docError: any) {
+            // Permission denied or other error reading admin doc - use fallback
+            console.warn('Could not read admin document, using fallback:', docError.code);
+            if (docError.code === 'permission-denied') {
+              console.log('Fallback: Creating minimal admin recipient object');
+              fetched.push({
+                uid: createdBy,
+                firstName: 'Your',
+                lastName: 'Admin',
+                email: 'admin@trustnshare.com',
+                role: 'admin',
+                relationshipLabel: '(Your Admin - Profile pending)',
+              });
+            } else {
+              throw docError;
+            }
+          }
+        } else {
+          toast.warning('Cannot share: No parent admin assigned to your account');
+        }
+
+        setRecipients(fetched);
+        console.log('Fetched admin recipient for client:', fetched);
+      } catch (e: any) {
+        const errorCode = e?.code;
+        const errorMsg = e?.message || String(e);
+        console.error('Failed to fetch recipients:', { code: errorCode, message: errorMsg });
+        
+        if (errorCode === 'permission-denied') {
+          toast.error('Permission denied. Update the rules and refresh page.');
+          console.warn('Permission denied reading admin document. Ensure Firestore rules are deployed.');
+        } else {
+          toast.error('Failed to load recipients');
+        }
       }
     };
 
     if (isClientDialogOpen) {
-      fetchClients();
+      fetchRecipients();
     }
-  }, [isClientDialogOpen]);
+  }, [isClientDialogOpen, currentUser]);
 
   const toggleClientSelection = (uid: string) => {
     setSelectedClientIds((prev) => {
@@ -534,10 +609,10 @@ const ClientShare: React.FC = () => {
 
   const confirmClientShare = async () => {
     if (selectedClientIds.length === 0) {
-      toast.error('Select one or more clients to share with');
+      toast.error('Select your admin to share with');
       return;
     }
-    const chosen = clients.filter((c) => selectedClientIds.includes(c.uid));
+    const chosen = recipients.filter((c) => selectedClientIds.includes(c.uid));
     setSelectedClients(chosen);
     setIsClientDialogOpen(false);
     toast.success(`${chosen.length} recipient(s) selected`);
@@ -613,6 +688,7 @@ const ClientShare: React.FC = () => {
                         <DialogContent className="w-full sm:w-[640px] max-h-[80vh] bg-card text-foreground">
                       <DialogHeader>
                         <DialogTitle>Select Security Policy</DialogTitle>
+                        <DialogDescription>Choose a security policy to protect your shared data</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-3 mt-2">
                           {availablePolicies.map((p: any, idx: number) => (
@@ -699,6 +775,7 @@ const ClientShare: React.FC = () => {
                 <DialogContent className="w-full sm:w-[640px] max-h-[80vh] bg-card text-foreground">
                   <DialogHeader>
                     <DialogTitle>{viewPolicy?.policyName}</DialogTitle>
+                    <DialogDescription>Security policy details and specifications</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 mt-4 max-h-[60vh] overflow-auto pr-2">
                     {viewPolicy && (
@@ -932,16 +1009,21 @@ const ClientShare: React.FC = () => {
         <Dialog open={isClientDialogOpen} onOpenChange={setIsClientDialogOpen}>
           <DialogContent className="max-w-3xl bg-card text-foreground">
             <DialogHeader>
-              <DialogTitle>Select Client(s) to Share With</DialogTitle>
+              <DialogTitle>Share Data With Your Admin</DialogTitle>
+              <DialogDescription>Select which admin to share your data with</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 mt-2">
               <div className="max-h-64 overflow-y-auto space-y-2">
-                {clients.length === 0 && <div className="text-sm text-muted-foreground">No clients found</div>}
-                {clients.map((c) => (
+                {recipients.length === 0 && <div className="text-sm text-muted-foreground">No admin found. Please contact support.</div>}
+                {recipients.map((c) => (
                   <label key={c.uid} className="flex items-center justify-between p-2 border rounded">
                     <div>
-                      <div className="font-medium">{c.firstName} {c.lastName}</div>
+                      <div className="font-medium">
+                        {c.firstName} {c.lastName}
+                        {c.relationshipLabel && <span className="text-xs text-muted-foreground ml-2">{c.relationshipLabel}</span>}
+                      </div>
                       <div className="text-xs text-muted-foreground">{c.email}</div>
+                      {c.role && <div className="text-xs text-muted-foreground capitalize">Role: {c.role}</div>}
                     </div>
                     <div>
                       <Checkbox checked={selectedClientIds.includes(c.uid)} onCheckedChange={() => toggleClientSelection(c.uid)} />
@@ -953,7 +1035,7 @@ const ClientShare: React.FC = () => {
                 <Button variant="outline" onClick={() => { setIsClientDialogOpen(false); setSelectedClientIds([]); }}>
                   Cancel
                 </Button>
-                <Button onClick={confirmClientShare} disabled={isSharing} style={{ backgroundColor: '#113738' }} className="text-white hover:opacity-90">
+                <Button onClick={confirmClientShare} disabled={isSharing || recipients.length === 0} style={{ backgroundColor: '#113738' }} className="text-white hover:opacity-90">
                   {isSharing ? 'Sharing...' : 'Share to Selected'}
                 </Button>
               </div>
