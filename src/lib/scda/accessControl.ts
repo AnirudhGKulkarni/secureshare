@@ -145,29 +145,17 @@ export function evaluateAccessRequest(
     };
   }
 
-  // Check basic role hierarchy access
-  if (!canRoleAccessOtherRole(accessRequest.userRole, effectiveOwnerRole)) {
-    return {
-      granted: false,
-      reason: `Access denied: Insufficient role level (${accessRequest.userRole} cannot access ${effectiveOwnerRole} data)`,
-      logEntry: {
-        ...logEntry,
-        action: 'access_denied',
-        reason: `Insufficient role level for owner role ${effectiveOwnerRole}`,
-      },
-    };
-  }
+  // Check if file is explicitly shared with the user (bypasses role hierarchy)
+  // IMPORTANT: Shared files can be accessed by lower-role users if explicitly shared
+  const isSharedWithUser = fileMetadata.sharedWith.some(
+    (share) => share.userId === accessRequest.userId
+  );
+  const isFileOwner = accessRequest.userId === fileMetadata.ownerId;
 
-  // 6. Apply role-specific constraints
-  const constraints = getRoleConstraints(accessRequest.userRole);
-
-  // Client can only access shared files
-  if (accessRequest.userRole === 'client') {
-    const isSharedWithUser = fileMetadata.sharedWith.some(
-      (share) => share.userId === accessRequest.userId
-    );
-
-    if (!isSharedWithUser && accessRequest.userId !== fileMetadata.ownerId) {
+  // If not shared with user and not the owner, enforce role hierarchy or reject
+  if (!isSharedWithUser && !isFileOwner) {
+    // For clients: MUST be explicitly shared
+    if (accessRequest.userRole === 'client') {
       return {
         granted: false,
         reason: 'Access denied: File is not explicitly shared with you',
@@ -178,7 +166,44 @@ export function evaluateAccessRequest(
         },
       };
     }
+
+    // For admins/super admins: Check role hierarchy
+    if (!canRoleAccessOtherRole(accessRequest.userRole, effectiveOwnerRole)) {
+      return {
+        granted: false,
+        reason: `Access denied: Insufficient role level (${accessRequest.userRole} cannot access ${effectiveOwnerRole} data)`,
+        logEntry: {
+          ...logEntry,
+          action: 'access_denied',
+          reason: `Insufficient role level for owner role ${effectiveOwnerRole}`,
+        },
+      };
+    }
   }
+
+  // If we get here and user is shared with or is owner, allow basic access
+  if (isSharedWithUser || isFileOwner) {
+    // File is explicitly shared or user is owner - grant access with read-only for clients
+    const accessLevel = accessRequest.userRole === 'client' ? 'read-only' : 'full';
+
+    return {
+      granted: true,
+      reason: isFileOwner 
+        ? 'Access granted: You are the file owner'
+        : 'Access granted: File is shared with you',
+      accessLevel,
+      logEntry: {
+        ...logEntry,
+        action: 'access_granted',
+        reason: isFileOwner 
+          ? 'File owner access'
+          : 'File explicitly shared with user',
+      },
+    };
+  }
+
+  // Additional checks for other roles
+  const constraints = getRoleConstraints(accessRequest.userRole);
 
   // SuperAdmin requires industry match
   if (accessRequest.userRole === 'super_admin' && constraints.requiresIndustryMatch) {

@@ -146,8 +146,28 @@ service cloud.firestore {
 
     // --- Super Admin Shared Data (metadata) ---
     match /sharedData/{docId} {
-      // Admins and super admins can share files; recipients can read metadata for download.
-      allow create, update, delete: if isAdminOrSuperAdmin();
+      // Admins can create shared data
+      allow create: if isAdminOrSuperAdmin()
+        && request.resource.data.uploadedBy == request.auth.uid
+        && request.resource.data.sharedWithUserIds is list;
+      
+      // Admins can update/delete their own shared data  
+      allow update, delete: if isAdminOrSuperAdmin()
+        && resource.data.uploadedBy == request.auth.uid;
+      
+      // Get individual document (for direct document access)
+      allow get: if isSignedIn() && (
+        isAdminOrSuperAdmin() ||
+        (resource.data.sharedWithUserIds is list && request.auth.uid in resource.data.sharedWithUserIds) ||
+        (resource.data.sharedWith is list && request.auth.uid in resource.data.sharedWith)
+      );
+
+      // List collection (enables WHERE clause queries for clients to find their shared files)
+      allow list: if isSignedIn();
+      
+      // Read permission:
+      // - Admins/super admins can read all shared data
+      // - Clients can read documents where they are in recipient lists
       allow read: if isSignedIn() && (
         isAdminOrSuperAdmin() ||
         (resource.data.sharedWithUserIds is list && request.auth.uid in resource.data.sharedWithUserIds) ||
@@ -198,26 +218,29 @@ service cloud.firestore {
     match /shared_data/{docId} {
       allow create: if isSignedIn();
 
-          // Read: allow owners and admins, and allow access when the document
-          // is explicitly shared with the signed-in user. This supports either
-          // an array of user ids (`sharedWith: ['uid', ...]`) or an array of
-          // objects like `{ userId: '...' }` (attempt a best-effort check).
-          allow read: if isSignedIn() && (
-            resource.data.ownerId == getUserId() ||
-            isAdminOrSuperAdmin() ||
-            (
-              resource.data.sharedWith is list && (
-                // common case: sharedWith is an array of uids
-                request.auth.uid in resource.data.sharedWith
-                // fallback attempt: if sharedWith is an array of objects, try
-                // to check the first element's userId as a heuristic. This is
-                // a best-effort check — for robust querying prefer adding a
-                // `sharedWithUserIds` array to documents or query from the
-                // client with an explicit filter.
-                || (resource.data.sharedWith.size() > 0 && resource.data.sharedWith[0].userId == request.auth.uid)
-              )
-            )
-          );
+      // List collection (enables WHERE clause queries)
+      allow list: if isSignedIn();
+
+      // Read: allow owners and admins, and allow access when the document
+      // is explicitly shared with the signed-in user. This supports either
+      // an array of user ids (`sharedWith: ['uid', ...]`) or an array of
+      // objects like `{ userId: '...' }` (attempt a best-effort check).
+      allow read: if isSignedIn() && (
+        resource.data.ownerId == getUserId() ||
+        isAdminOrSuperAdmin() ||
+        (
+          resource.data.sharedWith is list && (
+            // common case: sharedWith is an array of uids
+            request.auth.uid in resource.data.sharedWith
+            // fallback attempt: if sharedWith is an array of objects, try
+            // to check the first element's userId as a heuristic. This is
+            // a best-effort check — for robust querying prefer adding a
+            // `sharedWithUserIds` array to documents or query from the
+            // client with an explicit filter.
+            || (resource.data.sharedWith.size() > 0 && resource.data.sharedWith[0].userId == request.auth.uid)
+          )
+        )
+      );
 
       allow update: if isSignedIn() &&
         (resource.data.ownerId == getUserId() || isAdminOrSuperAdmin());
@@ -302,8 +325,16 @@ match /messages/{messageId} {
     match /scda_access_logs/{logId} {
       // Anyone can append access logs when performing file operations
       allow create: if isSignedIn();
-      // Only admins and super admins can read logs
-      allow read, list: if isAdminOrSuperAdmin();
+      // Users can read their own logs (for rate limiting checks); admins can read all
+      allow read: if isSignedIn() && (
+        resource.data.userId == getUserId() ||
+        isAdminOrSuperAdmin()
+      );
+      // List: users can list their own logs; admins can list all
+      allow list: if isSignedIn() && (
+        request.query.where('userId', '==', getUserId()) ||
+        isAdminOrSuperAdmin()
+      );
       // No updates to logs (immutable audit trail)
       allow update, delete: if false;
     }

@@ -196,8 +196,21 @@ const Share = () => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
       setShared(false);
-      toast.success('File uploaded successfully');
+      toast.success('File selected successfully');
     }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleShare = async () => {
@@ -267,11 +280,22 @@ const Share = () => {
         addedAt: new Date(),
       }));
 
+      // Check file size
+      if (file.size > 1024 * 1024) {
+        toast.warning('File is larger than 1MB. Storage efficiency may vary.');
+      }
+
+      // Convert file to base64
+      toast.info('Processing file...');
+      const base64Data = await fileToBase64(file);
+      toast.info('File processed successfully');
+
       // Save file metadata to Firestore with SCDA protection
       const fileMetadata = {
         fileName: file.name,
         fileSize: file.size,
         fileType: file.type || 'application/octet-stream',
+        fileData: base64Data, // Store base64-encoded file data
         ownerId: currentUser.uid,
         ownerRole: userRole,
         uploadedBy: currentUser.uid,

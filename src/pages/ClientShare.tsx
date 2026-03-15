@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Upload, Shield, Share2, CheckCircle, Download, FileText, Calendar, Lock } from 'lucide-react';
+import { Upload, Shield, Share2, CheckCircle, FileText, Calendar, Lock, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -132,7 +132,7 @@ const ClientShare: React.FC = () => {
     }
   };
 
-  const handleOpenFile = async (fileId: string, fileName: string) => {
+  const handleDownloadFile = async (fileId: string, fileName: string) => {
     if (!currentUser) {
       toast.error('User not authenticated');
       return;
@@ -155,20 +155,33 @@ const ClientShare: React.FC = () => {
         return;
       }
 
-      // Inform user of access level
-      if (accessResult.accessLevel === 'read-only') {
-        toast.info('This file is in read-only mode');
-      } else if (accessResult.accessLevel === 'preview') {
-        toast.info('This file is in preview mode only. Editing not allowed.');
+      // Retrieve file document to get the fileURL
+      const fileDocRef = doc(firestore, 'sharedData', fileId);
+      const fileDocSnap = await getDoc(fileDocRef);
+
+      if (!fileDocSnap.exists()) {
+        toast.error('File not found');
+        return;
       }
 
-      toast.success(`Opening ${fileName}`);
-      // In a real implementation, this would open the file or trigger a download
-      // For now, just log the successful access
-      console.log(`File opened with access level: ${accessResult.accessLevel}`);
+      const fileData = fileDocSnap.data() as any;
+      console.log('File document data:', fileData);
+      
+      const base64Data = fileData.fileData;
+
+      if (!base64Data) {
+        console.error('File data not available. Document data:', fileData);
+        toast.error(`This file needs to be re-shared to download. Old file format doesn't support direct downloads.`);
+        return;
+      }
+
+      // Convert base64 to blob and download
+      downloadBase64File(base64Data, fileName);
+      toast.success(`Downloading ${fileName}`);
+      console.log(`File download initiated: ${fileName}`);
     } catch (error) {
-      console.error('Error verifying file access:', error);
-      toast.error('Error opening file. Please try again.');
+      console.error('Error downloading file:', error);
+      toast.error('Error downloading file. Please try again.');
     }
   };
 
@@ -176,7 +189,43 @@ const ClientShare: React.FC = () => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
       setShared(false);
-      toast.success('File uploaded successfully');
+      toast.success('File selected successfully');
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const downloadBase64File = (base64Data: string, fileName: string) => {
+    try {
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray]);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      throw error;
     }
   };
 
@@ -213,7 +262,7 @@ const ClientShare: React.FC = () => {
 
       // Generate SCDA security signatures
       const dfp = generateDataFingerprint(
-        file.size,
+        Number(file.size),
         file.type || 'application/octet-stream',
         currentUser.uid,
         Date.now()
@@ -222,7 +271,7 @@ const ClientShare: React.FC = () => {
       const sit = generateSessionIdentityToken(
         currentUser.uid,
         deviceId || 'unknown',
-        currentUser.email,
+        Date.now(), // loginTime
         24 * 60 * 60 * 1000 // 24 hour expiry
       );
 
@@ -247,11 +296,22 @@ const ClientShare: React.FC = () => {
         addedAt: new Date(),
       }));
 
+      // Check file size
+      if (file.size > 1024 * 1024) {
+        toast.warning('File is larger than 1MB. Storage efficiency may vary.');
+      }
+
+      // Convert file to base64
+      toast.info('Processing file...');
+      const base64Data = await fileToBase64(file);
+      toast.info('File processed successfully');
+
       // Save file metadata to Firestore with SCDA protection
       const fileMetadata = {
         fileName: file.name,
         fileSize: file.size,
         fileType: file.type || 'application/octet-stream',
+        fileData: base64Data, // Store base64-encoded file data
         ownerId: currentUser.uid,
         ownerRole: userRole,
         uploadedBy: currentUser.uid,
@@ -310,9 +370,8 @@ const ClientShare: React.FC = () => {
         userRole,
         fileId: docRef.id,
         fileName: file.name,
-        action: 'file_shared',
+        action: 'access_granted',
         reason: 'File shared with SCDA protection',
-        accessLevel: 'full',
         ipAddress: ipAddress || 'unknown',
         deviceId: deviceId || 'unknown',
       });
@@ -384,8 +443,13 @@ const ClientShare: React.FC = () => {
           });
           setSharedData(data);
         },
-        (error) => {
-          console.error('Error listening to shared data:', error);
+        (error: any) => {
+          // Suppress permission-denied errors for non-admin users (expected behavior)
+          if (error.code === 'permission-denied') {
+            console.debug('ClientShare - Permission denied on shared data query (expected for clients):', error.message);
+          } else {
+            console.error('Error listening to shared data:', error);
+          }
         }
       );
 
@@ -417,8 +481,13 @@ const ClientShare: React.FC = () => {
           });
           setReceivedData(data);
         },
-        (error) => {
-          console.error('Error listening to received data:', error);
+        (error: any) => {
+          // Suppress permission-denied errors and log at debug level
+          if (error.code === 'permission-denied') {
+            console.debug('ClientShare - Permission denied on received data query:', error.message);
+          } else {
+            console.error('Error listening to received data:', error);
+          }
         }
       );
 
@@ -787,10 +856,11 @@ const ClientShare: React.FC = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleOpenFile(item.id, item.fileName)}
+                            onClick={() => handleDownloadFile(item.id, item.fileName)}
+                            className="gap-2"
                           >
-                            <Download className="h-4 w-4 mr-2" />
-                            Open
+                            <Download className="h-4 w-4" />
+                            Download
                           </Button>
                         </div>
                       );
@@ -843,10 +913,11 @@ const ClientShare: React.FC = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleOpenFile(item.id, item.fileName)}
+                            onClick={() => handleDownloadFile(item.id, item.fileName)}
+                            className="gap-2"
                           >
-                            <Download className="h-4 w-4 mr-2" />
-                            Open
+                            <Download className="h-4 w-4" />
+                            Download
                           </Button>
                         </div>
                       );
