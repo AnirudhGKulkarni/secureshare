@@ -7,12 +7,19 @@ import {
   CheckSquare,
   Users,
   Settings as SettingsIcon,
+  Share2,
+  MessageSquare,
+  History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/super-admin', icon: LayoutDashboard },
   { name: 'Admin Approvals', href: '/super-admin/approvals', icon: CheckSquare },
+  { name: 'User Management', href: '/super-admin/user-management', icon: Users },
+  { name: 'Shared Data', href: '/super-admin/shared-data', icon: Share2 },
+  { name: 'Admin Chat', href: '/super-admin/admin-chat', icon: MessageSquare },
+  { name: 'Login History', href: '/super-admin/login-history', icon: History },
   { name: 'Audit Logs', href: '/super-admin/audit', icon: FileText },
   { name: 'All Users', href: '/super-admin/users', icon: Users },
   { name: 'Settings', href: '/settings', icon: SettingsIcon },

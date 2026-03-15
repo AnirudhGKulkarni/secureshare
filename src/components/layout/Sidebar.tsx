@@ -21,6 +21,7 @@ const navigation = [
   { name: 'Policies', href: '/policies', icon: Shield },
   { name: 'Share Data', href: '/share', icon: Share2 },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
+  { name: 'Super Admin Messages', href: '/admin-messages', icon: MessageCircle },
   { name: 'Login History', href: '/login-history', icon: Clock },
   { name: 'Alert Center', href: '/alert-center', icon: Bell },
   { name: 'Security Settings', href: '/security-settings', icon: ShieldCheck },

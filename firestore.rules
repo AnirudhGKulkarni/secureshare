@@ -166,6 +166,20 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // --- Super Admin to Admin Chat (Bidirectional) ---
+    match /superAdminChats/{adminId}/messages/{messageId} {
+      allow create: if isSignedIn()
+        && (isSuperAdmin() || (isAdmin() && request.auth.uid == adminId))
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.message is string
+        && request.resource.data.timestamp is timestamp;
+      allow get, list: if isSignedIn() && (
+        isSuperAdmin() ||
+        (isAdmin() && request.auth.uid == adminId)
+      );
+      allow update, delete: if false;
+    }
+
     // --- Login history tracking ---
     match /loginHistory/{docId} {
       // Users may write their own login events; only super admin can read.

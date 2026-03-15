@@ -40,9 +40,15 @@ import PaymentGateway from "./pages/PaymentGateway";
 import Checkout from "./pages/Checkout";
 import adminSignup from "./pages/adminSignup";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import SuperAdminUserManagement from "./pages/SuperAdminUserManagement";
+import SuperAdminSharedData from "./pages/SuperAdminSharedData";
+import SuperAdminChat from "./pages/SuperAdminChat";
+import SuperAdminLoginHistory from "./pages/SuperAdminLoginHistory";
+import SuperAdminAuditLogs from "./pages/SuperAdminAuditLogs";
 import AdminApproval from "./pages/AdminApproval";
 import EnhancedAuditLogs from "./pages/EnhancedAuditLogs";
 import Chat from "./pages/Chat";
+import AdminChat from "./pages/AdminChat";
 import LoginHistory from "./pages/LoginHistory";
 import AlertCenter from "./pages/AlertCenter";
 import SecuritySettings from "./pages/SecuritySettings";
@@ -262,6 +268,14 @@ const App = () => (
               }
             />
             <Route
+              path="/admin-messages"
+              element={
+                <RoleProtectedRoute requiredRole="admin">
+                  <AdminChat />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
               path="/login-history"
               element={
                 <RoleProtectedRoute requiredRole="admin">
@@ -304,10 +318,42 @@ const App = () => (
               }
             />
             <Route
+              path="/super-admin/user-management"
+              element={
+                <RoleProtectedRoute requiredRole="super_admin">
+                  <SuperAdminUserManagement />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/super-admin/shared-data"
+              element={
+                <RoleProtectedRoute requiredRole="super_admin">
+                  <SuperAdminSharedData />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/super-admin/admin-chat"
+              element={
+                <RoleProtectedRoute requiredRole="super_admin">
+                  <SuperAdminChat />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/super-admin/login-history"
+              element={
+                <RoleProtectedRoute requiredRole="super_admin">
+                  <SuperAdminLoginHistory />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
               path="/super-admin/audit"
               element={
                 <RoleProtectedRoute requiredRole="super_admin">
-                  <EnhancedAuditLogs />
+                  <SuperAdminAuditLogs />
                 </RoleProtectedRoute>
               }
             />
