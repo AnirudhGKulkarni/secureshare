@@ -4,7 +4,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Search, MoreVertical, Send, Shield, Smile, Star, Download, Paintbrush, Lock } from 'lucide-react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -22,7 +22,7 @@ const formatDate = (d?: any) => {
 };
 
 const Chat = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, profile } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof document !== 'undefined') {
       return document.documentElement.classList.contains('dark');
@@ -67,20 +67,37 @@ const Chat = () => {
 
   const listRef = useRef<HTMLDivElement | null>(null); // messages scroll container
 
-  // load contacts
+  // load contacts with role-based filtering
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !profile) return;
     const load = async () => {
       try {
-        const q = query(collection(firestore, 'users'), where('role', 'in', ['client', 'admin']));
-        const snaps = await getDocs(q);
-        const loaded = snaps.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
+        let loaded = [];
         
-        // ensure current user is pinned as a self-chat at top
+        // If client: load their assigning admin (from profile.createdBy)
+        if (profile?.role === 'client' && profile?.createdBy) {
+          console.log('[Chat.tsx] Client loading admin:', profile.createdBy);
+          const adminDoc = await getDoc(doc(firestore, 'users', profile.createdBy));
+          if (adminDoc.exists()) {
+            const adminData = adminDoc.data();
+            loaded = [{ uid: profile.createdBy, displayName: adminData.displayName || 'Admin', ...adminData }];
+          }
+        } 
+        // If admin: load their created clients only
+        else if (profile?.role === 'admin') {
+          console.log('[Chat.tsx] Admin loading own clients:', currentUser.uid);
+          const q = query(
+            collection(firestore, 'users'),
+            where('createdBy', '==', currentUser.uid),
+            where('role', '==', 'client')
+          );
+          const snaps = await getDocs(q);
+          loaded = snaps.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
+        }
+        
+        // Add self-chat at top
         const me = { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email || 'Me', isMe: true };
-        // merge, removing any duplicate of current user from loaded
         const others = loaded.filter((c) => c.uid !== currentUser.uid);
-        
         const all = [me, ...others];
         setContacts(all);
       } catch (e) {
@@ -88,7 +105,7 @@ const Chat = () => {
       }
     };
     load();
-  }, [currentUser]);
+  }, [currentUser, profile]);
 
   // messages listener for selected conversation
   useEffect(() => {

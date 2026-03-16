@@ -30,24 +30,44 @@ service cloud.firestore {
       return isAdmin() || isSuperAdmin();
     }
 
-    function isClientReadingCreator() {
+    function isClientReadingCreator(docUserId) {
       // Client can read admin's document if admin created them
-      // Simple: currentUser.createdBy == adminId
+      // Checks: currentUser.createdBy == docUserId (the admin)
       let currentUserRef = /databases/$(database)/documents/users/$(request.auth.uid);
-      return isSignedIn() 
+      return !isAdminOrSuperAdmin()
+        && isSignedIn() 
         && exists(currentUserRef)
-        && get(currentUserRef).data.createdBy == userId;
+        && get(currentUserRef).data.createdBy == docUserId;
+    }
+
+    function isAdminReadingOwnClient(docUserId) {
+      // Admin can read a client document if they created that client
+      // Checks: admin is the one who created this client (client.createdBy == admin uid)
+      let clientRef = /databases/$(database)/documents/users/$(docUserId);
+      return isAdmin()
+        && exists(clientRef)
+        && get(clientRef).data.createdBy == request.auth.uid
+        && get(clientRef).data.role == 'client';
     }
 
     // --- Users ---
     match /users/{userId} {
       allow read: if isSignedIn() && (
-        userId == request.auth.uid           // User reading their own doc
-        || isAdminOrSuperAdmin()             // Admins reading any user
-        || isClientReadingCreator()          // Client reading their admin
+        userId == request.auth.uid                    // User reading their own doc
+        || isSuperAdmin()                             // SuperAdmins can read any user
+        || isAdminReadingOwnClient(userId)            // Admin reading their own created client
+        || isClientReadingCreator(userId)             // Client reading their admin
       );
-      // Listing all users should be restricted to admins.
-      allow list: if isAdminOrSuperAdmin();
+      
+      // List permissions - CRITICAL FOR CHAT FILTERING
+      allow list: if isSignedIn() && (
+        isAdminOrSuperAdmin()  // Admins can list users
+        || (
+          // Clients can list for message participant queries
+          // (needed for the chat system to work)
+          isSignedIn()
+        )
+      );
 
       // Admins and super admins can create any user profile
       // Regular users can only create their own profile with default permissions

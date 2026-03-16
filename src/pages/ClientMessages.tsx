@@ -72,64 +72,134 @@ const ClientMessages: React.FC = () => {
     );
   };
 
-  // load contacts (clients + admins) and subscribe to realtime message summaries
+  // Load contacts based on user role - CRITICAL FOR SECURITY
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    // Wait for profile to load before setting up contacts
+    if (!profile || !profile.role) return;
+
+    console.log('Setting up contacts for role:', profile.role, 'user:', currentUser.uid);
+
+    let unsubUsers: any = null;
+
+    // CASE 1: Client can only chat with their assigned admin
+    if (profile.role === 'client') {
+      console.log('Client setup - createdBy:', profile.createdBy);
+      
+      if (!profile.createdBy) {
+        // No admin assigned yet
+        const me = { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email || 'Me', isMe: true, avatar: profile?.avatar };
+        setContacts([me]);
+        return;
+      }
+
+      // Load the specific admin document
+      unsubUsers = onSnapshot(
+        doc(firestore, 'users', profile.createdBy),
+        (snap) => {
+          const me = { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email || 'Me', isMe: true, avatar: profile?.avatar };
+          if (snap.exists()) {
+            const adminData = { uid: snap.id, ...(snap.data() as any) };
+            setContacts([me, adminData]);
+            console.log('Client contacts loaded: self + admin', adminData.displayName);
+          } else {
+            setContacts([me]);
+            console.log('Client contacts: admin not found');
+          }
+        },
+        (error) => console.error('Client contacts error:', error)
+      );
+
+    }
+    // CASE 2: Admin can only chat with their assigned clients
+    else if (profile.role === 'admin') {
+      console.log('Admin setup - looking for clients created by:', currentUser.uid);
+      
+      const clientsQuery = query(
+        collection(firestore, 'users'),
+        where('createdBy', '==', currentUser.uid),
+        where('role', '==', 'client')
+      );
+
+      unsubUsers = onSnapshot(
+        clientsQuery,
+        (snap) => {
+          const clients = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
+          const me = { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email || 'Me', isMe: true, avatar: profile?.avatar };
+          const allContacts = [me, ...clients];
+          setContacts(allContacts);
+          console.log('Admin contacts loaded: self + ', clients.length, ' clients');
+        },
+        (error) => console.error('Admin contacts error:', error)
+      );
+    }
+
+    return () => {
+      if (unsubUsers) unsubUsers();
+    };
+  }, [currentUser, profile?.role, profile?.createdBy]);
+
+  // Update contacts with message summaries (last message, unread count, timestamp)
   useEffect(() => {
     if (!currentUser) return;
 
-    // subscribe to users (clients + admins)
-    const usersQuery = query(collection(firestore, 'users'), where('role', 'in', ['client', 'admin']));
-    const unsubUsers = onSnapshot(usersQuery, (snap) => {
-      const loaded = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
-      const me = { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email || 'Me', isMe: true, avatar: profile?.avatar } as any;
-      const others = loaded.filter((c) => c.uid !== currentUser.uid);
-      const all = [me, ...others];
-      setContacts(all);
-    }, (e) => console.warn('users listen', e));
+    const msgsQuery = query(
+      collection(firestore, 'messages'),
+      where('participants', 'array-contains', currentUser.uid),
+      orderBy('timestamp', 'desc')
+    );
 
-    // subscribe to all messages that involve me to compute lastMessage + unread counts per contact
-    const msgsQuery = query(collection(firestore, 'messages'), where('participants', 'array-contains', currentUser.uid), orderBy('timestamp', 'desc'));
     const unsubMsgs = onSnapshot(msgsQuery, (snap) => {
-      // compute a map of summaries keyed by other participant uid
+      // Build summaries from messages
       const summaries: Record<string, { lastMessage?: string; lastTimestamp?: any; unreadCount: number }> = {};
       snap.docs.forEach((d) => {
         const m = d.data() as any;
-        const other = Array.isArray(m.participants) ? m.participants.find((p: string) => p !== currentUser.uid) : (m.from === currentUser.uid ? m.to : m.from);
+        const other = Array.isArray(m.participants) 
+          ? m.participants.find((p: string) => p !== currentUser.uid)
+          : (m.from === currentUser.uid ? m.to : m.from);
         if (!other) return;
         if (!summaries[other]) summaries[other] = { lastMessage: '', lastTimestamp: null, unreadCount: 0 };
-        // last message is the most recent due to desc ordering
         if (!summaries[other].lastMessage) {
-          summaries[other].lastMessage = m.messageType === 'file' ? `[file] ${m.content || (m.file && m.file.name) || ''}` : (m.content || '');
+          summaries[other].lastMessage = m.messageType === 'file' 
+            ? `[file] ${m.content || (m.file && m.file.name) || ''}` 
+            : (m.content || '');
           summaries[other].lastTimestamp = m.timestamp;
         }
-        // unread if message is to me and not marked read
         if (m.to === currentUser.uid && m.from === other && m.read !== true) {
           summaries[other].unreadCount = (summaries[other].unreadCount || 0) + 1;
         }
       });
 
-      // merge summaries into contacts state and reorder so that
-      // - users with unread messages appear first
-      // - then by most recent message timestamp
+      // Merge summaries into current contacts
       setContacts((prev) => {
-        const merged = prev.map((c) => ({ ...c, lastMessage: summaries[c.uid]?.lastMessage, lastTimestamp: summaries[c.uid]?.lastTimestamp, unreadCount: summaries[c.uid]?.unreadCount || 0 }));
-        // keep `me` (self) as its original position; sort others
-        const me = merged.find(m => m.isMe);
-        const others = merged.filter(m => !m.isMe);
+        const merged = prev.map((c) => ({
+          ...c,
+          lastMessage: summaries[c.uid]?.lastMessage,
+          lastTimestamp: summaries[c.uid]?.lastTimestamp,
+          unreadCount: summaries[c.uid]?.unreadCount || 0
+        }));
+
+        // Keep self first, sort others by unread then timestamp
+        const me = merged.find((m) => m.isMe);
+        const others = merged.filter((m) => !m.isMe);
         others.sort((a, b) => {
-          // unread first
-          if ((b.unreadCount || 0) !== (a.unreadCount || 0)) return (b.unreadCount || 0) - (a.unreadCount || 0);
-          const at = a.lastTimestamp ? (a.lastTimestamp.toDate ? a.lastTimestamp.toDate().getTime() : new Date(a.lastTimestamp).getTime()) : 0;
-          const bt = b.lastTimestamp ? (b.lastTimestamp.toDate ? b.lastTimestamp.toDate().getTime() : new Date(b.lastTimestamp).getTime()) : 0;
+          if ((b.unreadCount || 0) !== (a.unreadCount || 0)) 
+            return (b.unreadCount || 0) - (a.unreadCount || 0);
+          const at = a.lastTimestamp 
+            ? (a.lastTimestamp.toDate ? a.lastTimestamp.toDate().getTime() : new Date(a.lastTimestamp).getTime())
+            : 0;
+          const bt = b.lastTimestamp
+            ? (b.lastTimestamp.toDate ? b.lastTimestamp.toDate().getTime() : new Date(b.lastTimestamp).getTime())
+            : 0;
           return bt - at;
         });
+
         return me ? [me, ...others] : others;
       });
-    }, (e) => console.warn('messages summary listen', e));
+    }, (e) => console.warn('messages summaries error', e));
 
-    return () => {
-      try { unsubUsers(); } catch (e) {}
-      try { unsubMsgs(); } catch (e) {}
-    };
+    return () => unsubMsgs();
   }, [currentUser]);
 
   // messages listener for selected conversation - prefer convoId query for realtime accuracy
